@@ -10,7 +10,7 @@ export type { User, UserRole, UserStatus } from './user'
 
 // Resource types (T022)
 export type { Tenant, TenantStatus } from './tenant'
-export type { FeatureFlag, FlagType, FlagStatus } from './featureFlag'
+export type { FeatureFlag, FlagState } from './featureFlag'
 export type { Policy, PolicyEffect } from './policy'
 export type { Invitation, InvitationStatus } from './invitation'
 export type { AuditEvent } from './auditEvent'

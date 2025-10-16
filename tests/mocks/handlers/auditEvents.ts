@@ -1,73 +1,129 @@
 /**
  * MSW Handlers: Audit Events Endpoints (Read-Only)
+ * 
+ * Schema: AuditEventResponse (Read-Only Resource)
+ * {
+ *   id: string
+ *   event_id: string
+ *   action: string
+ *   category: string
+ *   actor_user_id: string
+ *   actor_id: string
+ *   resource_type: string
+ *   resource_id: string
+ *   target: string
+ *   metadata: Record<string, unknown>
+ *   timestamp: string
+ *   tenant_id: string
+ * }
+ * 
+ * Note: Audit Events are read-only in the UI
  */
 
 import { http, HttpResponse } from 'msw'
 
 const API_BASE = 'http://localhost:8000/api/v1'
 
-const mockAuditEvents = [
+const mockAuditEvents: Array<{
+  id: string
+  event_id: string
+  action: string
+  category: string
+  actor_user_id: string
+  actor_id: string
+  resource_type: string
+  resource_id: string
+  target: string
+  metadata: Record<string, unknown>
+  timestamp: string
+  tenant_id: string
+}> = [
   {
+    id: 'audit-1',
     event_id: 'event-1',
-    tenant_id: 'tenant-infysight',
-    actor_id: 'user-sa-1',
-    action: 'user.created',
+    action: 'user_created',
+    category: 'USER_MANAGEMENT',
+    actor_user_id: 'user-sa-1',
+    actor_user_id: 'user-sa-1',
     resource_type: 'user',
-    resource_id: 'user-admin-1',
-    timestamp: '2025-01-01T00:00:00Z',
+    resource_user_id: 'user-admin-1',
+    target: 'admin@example.com',
     metadata: { ip_address: '192.168.1.1' },
+    timestamp: '2025-01-01T00:00:00Z',
+    tenant_id: 'tenant-1',
   },
   {
+    id: 'audit-2',
     event_id: 'event-2',
-    tenant_id: 'tenant-infysight',
-    actor_id: 'user-admin-1',
-    action: 'user.updated',
+    action: 'user_updated',
+    category: 'USER_MANAGEMENT',
+    actor_user_id: 'user-admin-1',
+    actor_user_id: 'user-admin-1',
     resource_type: 'user',
-    resource_id: 'user-standard-1',
-    timestamp: '2025-01-02T00:00:00Z',
+    resource_user_id: 'user-standard-1',
+    target: 'standard@example.com',
     metadata: { changes: ['roles'] },
+    timestamp: '2025-01-02T00:00:00Z',
+    tenant_id: 'tenant-1',
+  },
+  {
+    id: 'audit-3',
+    event_id: 'event-3',
+    action: 'policy_created',
+    category: 'POLICY_MANAGEMENT',
+    actor_user_id: 'user-admin-1',
+    actor_user_id: 'user-admin-1',
+    resource_type: 'policy',
+    resource_id: 'policy-1',
+    target: 'policy-1',
+    metadata: { effect: 'Allow' },
+    timestamp: '2025-01-03T00:00:00Z',
+    tenant_id: 'tenant-1',
+  },
+  {
+    id: 'audit-4',
+    event_id: 'event-4',
+    action: 'tenant_settings_updated',
+    category: 'TENANT_MANAGEMENT',
+    actor_user_id: 'user-sa-1',
+    actor_user_id: 'user-sa-1',
+    resource_type: 'tenant',
+    resource_id: 'tenant-1',
+    target: 'tenant-1',
+    metadata: { setting: 'max_users', old_value: 100, new_value: 150 },
+    timestamp: '2025-01-04T00:00:00Z',
+    tenant_id: 'tenant-1',
   },
 ]
 
 export const auditEventsHandlers = [
   // GET /api/v1/audit/events (read-only, with filters)
-  http.get(`${API_BASE}/audit/events`, ({ request }) => {
-    const url = new URL(request.url)
-    const tenantId = url.searchParams.get('tenant_id')
-    const actorId = url.searchParams.get('actor_id')
-    const action = url.searchParams.get('action')
-    const startDate = url.searchParams.get('start_date')
-    const endDate = url.searchParams.get('end_date')
+  http.get(`${API_BASE}/audit/events`, () => {
+    return HttpResponse.json(mockAuditEvents)
+  }),
 
-    if (!tenantId) {
-      return HttpResponse.json({ detail: 'tenant_id required' }, { status: 400 })
-    }
+  // GET /api/v1/audit-events (alternative path for react-admin)
+  http.get(`${API_BASE}/audit-events`, () => {
+    return HttpResponse.json(mockAuditEvents)
+  }),
 
-    // Filter events
-    let filtered = mockAuditEvents.filter((e) => e.tenant_id === tenantId)
+  http.get(`${API_BASE}/audit/events/:id`, ({ params }) => {
+    const event = mockAuditEvents.find(
+      (e) => e.id === params.id || e.event_id === params.id
+    )
+    if (!event) {
+      return HttpResponse.json({ detail: 'Not found' }, { status: 404 })
+    }
+    return HttpResponse.json(event)
+  }),
 
-    if (actorId) {
-      filtered = filtered.filter((e) => e.actor_id === actorId)
+  http.get(`${API_BASE}/audit-events/:id`, ({ params }) => {
+    const event = mockAuditEvents.find(
+      (e) => e.id === params.id || e.event_id === params.id
+    )
+    if (!event) {
+      return HttpResponse.json({ detail: 'Not found' }, { status: 404 })
     }
-    if (action) {
-      filtered = filtered.filter((e) => e.action === action)
-    }
-    if (startDate) {
-      filtered = filtered.filter((e) => e.timestamp >= startDate)
-    }
-    if (endDate) {
-      filtered = filtered.filter((e) => e.timestamp <= endDate)
-    }
-
-    // Pagination
-    const page = parseInt(url.searchParams.get('page') || '1')
-    const perPage = parseInt(url.searchParams.get('perPage') || '10')
-    const start = (page - 1) * perPage
-    const end = start + perPage
-
-    return HttpResponse.json({
-      data: filtered.slice(start, end),
-      total: filtered.length,
-    })
+    return HttpResponse.json(event)
   }),
 ]

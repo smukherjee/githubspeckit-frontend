@@ -46,12 +46,12 @@ const ListActions = () => (
 export function AuditEventList() {
   return (
     <List filters={auditFilters} actions={<ListActions />}>
-      <Datagrid>
-        <DateField source="timestamp" showTime />
-        <TextField source="actor_id" label="Actor" />
-        <TextField source="action" />
-        <TextField source="resource_type" label="Resource" />
-        <TextField source="resource_id" label="Resource ID" />
+      <Datagrid rowClick="show">
+        <DateField source="timestamp" label="Timestamp" showTime />
+        <TextField source="action" label="Action" />
+        <TextField source="category" label="Category" />
+        <TextField source="actor_id" label="Actor ID" />
+        <TextField source="resource_type" label="Resource Type" />
       </Datagrid>
     </List>
   )
@@ -61,12 +61,16 @@ export function AuditEventShow() {
   return (
     <Show>
       <SimpleShowLayout>
+        <TextField source="id" label="ID" />
         <TextField source="event_id" label="Event ID" />
-        <DateField source="timestamp" showTime />
+        <DateField source="timestamp" label="Timestamp" showTime />
+        <TextField source="action" label="Action" />
+        <TextField source="category" label="Category" />
+        <TextField source="actor_user_id" label="Actor User ID" />
         <TextField source="actor_id" label="Actor ID" />
-        <TextField source="action" />
         <TextField source="resource_type" label="Resource Type" />
         <TextField source="resource_id" label="Resource ID" />
+        <TextField source="target" label="Target (JSON)" />
         <TextField source="metadata" label="Metadata (JSON)" />
         <TextField source="tenant_id" label="Tenant ID" />
       </SimpleShowLayout>

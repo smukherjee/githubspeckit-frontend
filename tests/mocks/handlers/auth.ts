@@ -56,9 +56,9 @@ export const authHandlers = [
 
     // Simple password check (in real implementation, backend validates)
     const validPasswords: Record<string, string> = {
-      'infysightsa@infysight.com': 'infysightsa123',
-      'infysightadmin@infysight.com': 'infysightadmin123',
-      'infysightuser@infysight.com': 'infysightuser123',
+      'infysightsa@infysight.com': 'Admin@1234',
+      'infysightadmin@infysight.com': 'Admin@1234',
+      'infysightuser@infysight.com': 'User@1234',
     }
 
     if (body.password !== validPasswords[body.email]) {
@@ -90,6 +90,12 @@ export const authHandlers = [
   // POST /api/v1/auth/logout
   http.post(`${API_BASE}/auth/logout`, () => {
     // Backend would invalidate refresh token
+    return new HttpResponse(null, { status: 204 })
+  }),
+
+  // POST /api/v1/auth/revoke - Token revocation endpoint
+  http.post(`${API_BASE}/auth/revoke`, () => {
+    // Backend invalidates the JWT token
     return new HttpResponse(null, { status: 204 })
   }),
 

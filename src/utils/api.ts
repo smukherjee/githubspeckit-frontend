@@ -3,16 +3,16 @@
  * 
  * Configured axios instance with:
  * - Request interceptor: Auto-inject Authorization Bearer token
- * - Response interceptor: Handle 401 (token refresh + retry)
+ * - Response interceptor: Handle 401 (no token refresh - backend uses non-refreshable tokens)
  * - Response interceptor: Format 403/500 errors for user display
  * - Base URL configuration from environment
  */
 
 import axios from 'axios'
-import type { AxiosError, AxiosRequestConfig, InternalAxiosRequestConfig } from 'axios'
+import type { AxiosError, InternalAxiosRequestConfig } from 'axios'
 import { API_BASE_URL } from '@/config/env'
-import { getAccessToken, setAccessToken, clearAuth } from './storage'
-import type { RefreshResponse, ApiError } from '@/types'
+import { getAccessToken, clearAuth } from './storage'
+import type { ApiError } from '@/types'
 
 // Create axios instance with base configuration
 export const apiClient = axios.create({
@@ -21,34 +21,7 @@ export const apiClient = axios.create({
   headers: {
     'Content-Type': 'application/json',
   },
-  withCredentials: true, // Enable HttpOnly cookies for refresh tokens
 })
-
-// Track if a token refresh is in progress to avoid multiple simultaneous refresh attempts
-let isRefreshing = false
-let refreshPromise: Promise<string> | null = null
-
-/**
- * Refresh the access token using the refresh endpoint
- * Returns the new access token or throws an error if refresh fails
- */
-async function refreshAccessToken(): Promise<string> {
-  try {
-    const response = await axios.post<RefreshResponse>(
-      `/auth/refresh`,
-      {},
-      { withCredentials: true } // Send HttpOnly refresh cookie
-    )
-    
-    const newToken = response.data.access_token
-    setAccessToken(newToken)
-    return newToken
-  } catch (error) {
-    // Refresh failed - clear auth and force re-login
-    clearAuth()
-    throw error
-  }
-}
 
 /**
  * Request Interceptor: Inject Authorization Bearer token
@@ -69,56 +42,27 @@ apiClient.interceptors.request.use(
 )
 
 /**
- * Response Interceptor: Handle errors and token refresh
+ * Response Interceptor: Handle errors
+ * NOTE: Backend doesn't support token refresh - tokens are non-refreshable
+ * On 401, user must re-login
  */
 apiClient.interceptors.response.use(
   // Success response - pass through
   (response) => response,
   
-  // Error response - handle 401 (refresh), 403, 500
+  // Error response - handle 401, 403, 500
   async (error: AxiosError<ApiError>) => {
-    const originalRequest = error.config as AxiosRequestConfig & { _retry?: boolean }
-    
-    // Handle 401 Unauthorized - attempt token refresh
-    if (error.response?.status === 401 && !originalRequest._retry) {
-      originalRequest._retry = true
+    // Handle 401 Unauthorized - token expired or invalid
+    if (error.response?.status === 401) {
+      // Backend doesn't support token refresh - tokens are single-use/non-refreshable
+      // User must re-login to get a new token
+      clearAuth()
       
-      // If a refresh is already in progress, wait for it
-      if (isRefreshing && refreshPromise) {
-        try {
-          const newToken = await refreshPromise
-          if (originalRequest.headers) {
-            originalRequest.headers.Authorization = `Bearer ${newToken}`
-          }
-          return apiClient(originalRequest)
-        } catch (refreshError) {
-          return Promise.reject(refreshError)
-        }
+      const apiError: ApiError = {
+        detail: error.response.data?.detail || 'Your session has expired. Please login again.',
+        status: 401,
       }
-      
-      // Start a new token refresh
-      isRefreshing = true
-      refreshPromise = refreshAccessToken()
-      
-      try {
-        const newToken = await refreshPromise
-        
-        // Update the original request with new token and retry
-        if (originalRequest.headers) {
-          originalRequest.headers.Authorization = `Bearer ${newToken}`
-        }
-        
-        isRefreshing = false
-        refreshPromise = null
-        
-        return apiClient(originalRequest)
-      } catch (refreshError) {
-        isRefreshing = false
-        refreshPromise = null
-        
-        // Refresh failed - redirect to login will be handled by authProvider
-        return Promise.reject(refreshError)
-      }
+      return Promise.reject(apiError)
     }
     
     // Handle 403 Forbidden - format user-friendly message
@@ -154,3 +98,4 @@ apiClient.interceptors.response.use(
 )
 
 export default apiClient
+

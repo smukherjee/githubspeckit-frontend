@@ -1,19 +1,38 @@
 /**
  * MSW Handlers: Feature Flags Endpoints
+ * 
+ * Schema: FeatureFlagResponse
+ * {
+ *   id: string
+ *   flag_id: string
+ *   key: string
+ *   state: "enabled" | "disabled"
+ *   variant?: string
+ *   tenant_id: string
+ * }
  */
 
 import { http, HttpResponse } from 'msw'
 
 const API_BASE = 'http://localhost:8000/api/v1'
 
-const mockFeatureFlags = [
+const mockFeatureFlags: Array<{
+  id: string
+  flag_id: string
+  tenant_id: string
+  key: string
+  state: string
+  variant?: string
+  created_at: string
+  updated_at: string
+}> = [
   {
+    id: 'ff-id-1',
     flag_id: 'flag-1',
     tenant_id: 'tenant-infysight',
-    name: 'enable_advanced_reporting',
-    flag_type: 'boolean',
-    status: 'enabled',
-    values: { default: true },
+    key: 'enable_advanced_reporting',
+    state: 'enabled',
+    variant: 'default',
     created_at: '2025-01-01T00:00:00Z',
     updated_at: '2025-01-01T00:00:00Z',
   },
@@ -27,14 +46,14 @@ export const featureFlagsHandlers = [
       return HttpResponse.json({ detail: 'tenant_id required' }, { status: 400 })
     }
     const filtered = mockFeatureFlags.filter((f) => f.tenant_id === tenantId)
-    return HttpResponse.json({ data: filtered, total: filtered.length })
+    return HttpResponse.json(filtered)
   }),
 
   http.get(`${API_BASE}/feature-flags/:id`, ({ request, params }) => {
     const url = new URL(request.url)
     const tenantId = url.searchParams.get('tenant_id')
     const flag = mockFeatureFlags.find(
-      (f) => f.flag_id === params.id && f.tenant_id === tenantId
+      (f) => (f.id === params.id || f.flag_id === params.id) && f.tenant_id === tenantId
     )
     if (!flag) {
       return HttpResponse.json({ detail: 'Not found' }, { status: 404 })
@@ -44,12 +63,15 @@ export const featureFlagsHandlers = [
 
   http.post(`${API_BASE}/feature-flags`, async ({ request }) => {
     const url = new URL(request.url)
-    const tenantId = url.searchParams.get('tenant_id')
-    const body = await request.json() as any
+    const body = (await request.json()) as Record<string, unknown>
+    const tenantId = url.searchParams.get('tenant_id') || (body.tenant_id as string)
     const newFlag = {
+      id: `ff-id-${Date.now()}`,
       flag_id: `flag-${Date.now()}`,
       tenant_id: tenantId!,
-      ...body,
+      key: body.key as string,
+      state: (body.state as string) || 'disabled',
+      variant: body.variant ? (body.variant as string) : undefined,
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
     }
@@ -61,15 +83,15 @@ export const featureFlagsHandlers = [
     const url = new URL(request.url)
     const tenantId = url.searchParams.get('tenant_id')
     const index = mockFeatureFlags.findIndex(
-      (f) => f.flag_id === params.id && f.tenant_id === tenantId
+      (f) => (f.id === params.id || f.flag_id === params.id) && f.tenant_id === tenantId
     )
     if (index === -1) {
       return HttpResponse.json({ detail: 'Not found' }, { status: 404 })
     }
-    const body = await request.json() as any
+    const body = (await request.json()) as Record<string, unknown>
     mockFeatureFlags[index] = {
       ...mockFeatureFlags[index],
-      ...body,
+      ...(body as unknown as typeof mockFeatureFlags[0]),
       updated_at: new Date().toISOString(),
     }
     return HttpResponse.json(mockFeatureFlags[index])
@@ -79,7 +101,7 @@ export const featureFlagsHandlers = [
     const url = new URL(request.url)
     const tenantId = url.searchParams.get('tenant_id')
     const index = mockFeatureFlags.findIndex(
-      (f) => f.flag_id === params.id && f.tenant_id === tenantId
+      (f) => (f.id === params.id || f.flag_id === params.id) && f.tenant_id === tenantId
     )
     if (index === -1) {
       return HttpResponse.json({ detail: 'Not found' }, { status: 404 })

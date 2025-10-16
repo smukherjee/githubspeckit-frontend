@@ -26,14 +26,14 @@ export function FeatureFlagList() {
     <List>
       {isSmall ? (
         <SimpleList
-          primaryText={(record) => record.name}
-          secondaryText={(record) => `${record.flag_type} • ${record.status}`}
+          primaryText={(record) => record.key || 'Unknown'}
+          secondaryText={(record) => `${record.state || 'unknown'} • ${record.variant || 'n/a'}`}
         />
       ) : (
         <Datagrid>
-          <TextField source="name" />
-          <TextField source="flag_type" label="Type" />
-          <TextField source="status" />
+          <TextField source="key" label="Key" />
+          <TextField source="state" label="State" />
+          <TextField source="variant" label="Variant" />
         </Datagrid>
       )}
     </List>
@@ -46,42 +46,26 @@ export function FeatureFlagCreate() {
       <SimpleForm>
         <Grid container spacing={2}>
           <Grid item xs={12} md={6}>
-            <TextInput source="name" validate={[required()]} fullWidth />
+            <TextInput source="key" label="Key" validate={[required()]} fullWidth />
           </Grid>
           <Grid item xs={12} md={6}>
             <SelectInput
-              source="flag_type"
-              label="Type"
-              choices={[
-                { id: 'boolean', name: 'Boolean' },
-                { id: 'string', name: 'String' },
-                { id: 'number', name: 'Number' },
-                { id: 'json', name: 'JSON' },
-              ]}
-              validate={[required()]}
-              fullWidth
-            />
-          </Grid>
-          <Grid item xs={12} md={6}>
-            <SelectInput
-              source="status"
+              source="state"
+              label="State"
               choices={[
                 { id: 'enabled', name: 'Enabled' },
                 { id: 'disabled', name: 'Disabled' },
               ]}
-              defaultValue="enabled"
+              defaultValue="disabled"
               validate={[required()]}
               fullWidth
             />
           </Grid>
-          <Grid item xs={12}>
-            <TextInput
-              source="values"
-              label="Values (JSON)"
-              multiline
-              rows={4}
-              fullWidth
-            />
+          <Grid item xs={12} md={6}>
+            <TextInput source="variant" label="Variant" fullWidth />
+          </Grid>
+          <Grid item xs={12} md={6}>
+            <TextInput source="flag_id" label="Flag ID" fullWidth />
           </Grid>
         </Grid>
       </SimpleForm>
@@ -95,25 +79,12 @@ export function FeatureFlagEdit() {
       <SimpleForm>
         <Grid container spacing={2}>
           <Grid item xs={12} md={6}>
-            <TextInput source="name" validate={[required()]} fullWidth />
+            <TextInput source="key" label="Key" validate={[required()]} fullWidth />
           </Grid>
           <Grid item xs={12} md={6}>
             <SelectInput
-              source="flag_type"
-              label="Type"
-              choices={[
-                { id: 'boolean', name: 'Boolean' },
-                { id: 'string', name: 'String' },
-                { id: 'number', name: 'Number' },
-                { id: 'json', name: 'JSON' },
-              ]}
-              validate={[required()]}
-              fullWidth
-            />
-          </Grid>
-          <Grid item xs={12} md={6}>
-            <SelectInput
-              source="status"
+              source="state"
+              label="State"
               choices={[
                 { id: 'enabled', name: 'Enabled' },
                 { id: 'disabled', name: 'Disabled' },
@@ -122,14 +93,11 @@ export function FeatureFlagEdit() {
               fullWidth
             />
           </Grid>
-          <Grid item xs={12}>
-            <TextInput
-              source="values"
-              label="Values (JSON)"
-              multiline
-              rows={4}
-              fullWidth
-            />
+          <Grid item xs={12} md={6}>
+            <TextInput source="variant" label="Variant" fullWidth />
+          </Grid>
+          <Grid item xs={12} md={6}>
+            <TextInput source="flag_id" label="Flag ID" fullWidth />
           </Grid>
         </Grid>
       </SimpleForm>
@@ -141,11 +109,11 @@ export function FeatureFlagShow() {
   return (
     <Show>
       <SimpleShowLayout>
+        <TextField source="id" label="ID" />
         <TextField source="flag_id" label="Flag ID" />
-        <TextField source="name" />
-        <TextField source="flag_type" label="Type" />
-        <TextField source="status" />
-        <TextField source="values" label="Values (JSON)" />
+        <TextField source="key" label="Key" />
+        <TextField source="state" label="State" />
+        <TextField source="variant" label="Variant" />
         <TextField source="tenant_id" label="Tenant ID" />
       </SimpleShowLayout>
     </Show>

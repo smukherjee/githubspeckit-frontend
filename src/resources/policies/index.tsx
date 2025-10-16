@@ -22,9 +22,10 @@ export function PolicyList() {
   return (
     <List>
       <Datagrid>
-        <TextField source="resource_type" label="Resource" />
-        <TextField source="action" />
-        <TextField source="effect" />
+        <TextField source="resource_type" label="Resource Type" />
+        <TextField source="condition_expression" label="Condition" />
+        <TextField source="effect" label="Effect" />
+        <TextField source="version" label="Version" />
       </Datagrid>
     </List>
   )
@@ -37,6 +38,24 @@ export function PolicyCreate() {
         <Grid container spacing={2}>
           <Grid item xs={12} md={6}>
             <TextInput
+              source="policy_id"
+              label="Policy ID"
+              validate={[required()]}
+              fullWidth
+            />
+          </Grid>
+          <Grid item xs={12} md={6}>
+            <TextInput
+              source="version"
+              label="Version"
+              type="number"
+              defaultValue={1}
+              validate={[required()]}
+              fullWidth
+            />
+          </Grid>
+          <Grid item xs={12} md={6}>
+            <TextInput
               source="resource_type"
               label="Resource Type"
               validate={[required()]}
@@ -44,15 +63,12 @@ export function PolicyCreate() {
             />
           </Grid>
           <Grid item xs={12} md={6}>
-            <TextInput source="action" validate={[required()]} fullWidth />
-          </Grid>
-          <Grid item xs={12} md={6}>
             <SelectInput
               source="effect"
+              label="Effect"
               choices={[
-                { id: 'ALLOW', name: 'Allow' },
-                { id: 'DENY', name: 'Deny' },
-                { id: 'ABSTAIN', name: 'Abstain' },
+                { id: 'Allow', name: 'Allow' },
+                { id: 'Deny', name: 'Deny' },
               ]}
               validate={[required()]}
               fullWidth
@@ -60,10 +76,11 @@ export function PolicyCreate() {
           </Grid>
           <Grid item xs={12}>
             <TextInput
-              source="conditions"
-              label="Conditions (JSON)"
+              source="condition_expression"
+              label="Condition Expression"
               multiline
               rows={4}
+              validate={[required()]}
               fullWidth
             />
           </Grid>
@@ -80,6 +97,23 @@ export function PolicyEdit() {
         <Grid container spacing={2}>
           <Grid item xs={12} md={6}>
             <TextInput
+              source="policy_id"
+              label="Policy ID"
+              validate={[required()]}
+              fullWidth
+            />
+          </Grid>
+          <Grid item xs={12} md={6}>
+            <TextInput
+              source="version"
+              label="Version"
+              type="number"
+              validate={[required()]}
+              fullWidth
+            />
+          </Grid>
+          <Grid item xs={12} md={6}>
+            <TextInput
               source="resource_type"
               label="Resource Type"
               validate={[required()]}
@@ -87,15 +121,12 @@ export function PolicyEdit() {
             />
           </Grid>
           <Grid item xs={12} md={6}>
-            <TextInput source="action" validate={[required()]} fullWidth />
-          </Grid>
-          <Grid item xs={12} md={6}>
             <SelectInput
               source="effect"
+              label="Effect"
               choices={[
-                { id: 'ALLOW', name: 'Allow' },
-                { id: 'DENY', name: 'Deny' },
-                { id: 'ABSTAIN', name: 'Abstain' },
+                { id: 'Allow', name: 'Allow' },
+                { id: 'Deny', name: 'Deny' },
               ]}
               validate={[required()]}
               fullWidth
@@ -103,10 +134,11 @@ export function PolicyEdit() {
           </Grid>
           <Grid item xs={12}>
             <TextInput
-              source="conditions"
-              label="Conditions (JSON)"
+              source="condition_expression"
+              label="Condition Expression"
               multiline
               rows={4}
+              validate={[required()]}
               fullWidth
             />
           </Grid>
@@ -120,12 +152,14 @@ export function PolicyShow() {
   return (
     <Show>
       <SimpleShowLayout>
+        <TextField source="id" label="ID" />
         <TextField source="policy_id" label="Policy ID" />
+        <TextField source="version" label="Version" />
         <TextField source="resource_type" label="Resource Type" />
-        <TextField source="action" />
-        <TextField source="effect" />
-        <TextField source="conditions" label="Conditions (JSON)" />
-        <TextField source="tenant_id" label="Tenant ID" />
+        <TextField source="condition_expression" label="Condition Expression" />
+        <TextField source="effect" label="Effect" />
+        <TextField source="created_by" label="Created By" />
+        <TextField source="created_at" label="Created At" />
       </SimpleShowLayout>
     </Show>
   )

@@ -9,13 +9,11 @@ import {
   TextField,
   EmailField,
   DateField,
-  ChipField,
   Create,
   Show,
   SimpleForm,
   SimpleShowLayout,
   TextInput,
-  SelectArrayInput,
   DateTimeInput,
   required,
   email,
@@ -38,7 +36,7 @@ function RevokeButton() {
     if (!record) return
 
     try {
-      await apiClient.post(`/api/v1/invitations/${record.invitation_id}/revoke`)
+      await apiClient.post(`/invitations/${record.invitation_id}/revoke`)
       notify('Invitation revoked successfully', { type: 'success' })
       refresh()
     } catch {
@@ -59,12 +57,11 @@ function RevokeButton() {
 export function InvitationList() {
   return (
     <List>
-      <Datagrid>
-        <EmailField source="email" />
-        <ChipField source="roles" />
-        <TextField source="status" />
-        <DateField source="expires_at" label="Expires" />
-        <DateField source="created_at" />
+      <Datagrid rowClick={false}>
+        <EmailField source="email" label="Email" />
+        <TextField source="status" label="Status" />
+        <DateField source="expires_at" label="Expires" showTime />
+        <DateField source="created_at" label="Created" showTime />
       </Datagrid>
     </List>
   )
@@ -78,6 +75,7 @@ export function InvitationCreate() {
           <Grid item xs={12} md={6}>
             <TextInput
               source="email"
+              label="Email"
               validate={[required(), email()]}
               fullWidth
             />
@@ -86,18 +84,6 @@ export function InvitationCreate() {
             <DateTimeInput
               source="expires_at"
               label="Expires At"
-              validate={[required()]}
-              fullWidth
-            />
-          </Grid>
-          <Grid item xs={12}>
-            <SelectArrayInput
-              source="roles"
-              choices={[
-                { id: 'superadmin', name: 'Superadmin' },
-                { id: 'tenant_admin', name: 'Tenant Admin' },
-                { id: 'standard', name: 'Standard' },
-              ]}
               validate={[required()]}
               fullWidth
             />
@@ -112,12 +98,12 @@ export function InvitationShow() {
   return (
     <Show actions={<RevokeButton />}>
       <SimpleShowLayout>
+        <TextField source="id" label="ID" />
         <TextField source="invitation_id" label="Invitation ID" />
-        <EmailField source="email" />
-        <ChipField source="roles" />
-        <TextField source="status" />
+        <EmailField source="email" label="Email" />
+        <TextField source="status" label="Status" />
         <DateField source="expires_at" label="Expires At" showTime />
-        <DateField source="created_at" showTime />
+        <DateField source="created_at" label="Created" showTime />
         <TextField source="tenant_id" label="Tenant ID" />
       </SimpleShowLayout>
     </Show>

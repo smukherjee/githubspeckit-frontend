@@ -31,10 +31,10 @@ export function TenantList() {
   return (
     <List>
       <Datagrid bulkActionButtons={<TenantBulkActionButtons />}>
-        <TextField source="name" />
-        <TextField source="status" />
+        <TextField source="name" label="Name" />
+        <TextField source="status" label="Status" />
         <TextField source="config_version" label="Config Version" />
-        <DateField source="created_at" />
+        <DateField source="created_at" label="Created" />
       </Datagrid>
     </List>
   )
@@ -90,11 +90,11 @@ export function TenantShow() {
     <Show>
       <SimpleShowLayout>
         <TextField source="tenant_id" label="Tenant ID" />
-        <TextField source="name" />
-        <TextField source="status" />
+        <TextField source="name" label="Name" />
+        <TextField source="status" label="Status" />
         <TextField source="config_version" label="Config Version" />
-        <DateField source="created_at" showTime />
-        <DateField source="updated_at" showTime />
+        <DateField source="created_at" label="Created" showTime />
+        <DateField source="updated_at" label="Updated" showTime />
       </SimpleShowLayout>
     </Show>
   )

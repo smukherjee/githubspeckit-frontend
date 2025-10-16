@@ -19,7 +19,7 @@ describe('MSW Setup', () => {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         email: 'infysightsa@infysight.com',
-        password: 'infysightsa123',
+        password: 'Admin@1234',
       }),
     })
 

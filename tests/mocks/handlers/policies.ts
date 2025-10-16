@@ -1,40 +1,55 @@
 /**
  * MSW Handlers: Policies Endpoints
+ * 
+ * Schema: PolicyResponse
+ * {
+ *   id: string
+ *   policy_id: string
+ *   version: number
+ *   resource_type: string
+ *   condition_expression: string
+ *   effect: "Allow" | "Deny"
+ *   created_by?: string
+ *   created_at?: string
+ * }
+ * 
+ * Note: Create uses /policies/register endpoint (PolicyRegistrationRequest)
  */
 
 import { http, HttpResponse } from 'msw'
 
 const API_BASE = 'http://localhost:8000/api/v1'
 
-const mockPolicies = [
+const mockPolicies: Array<{
+  id: string
+  policy_id: string
+  version: number
+  resource_type: string
+  condition_expression: string
+  effect: string
+  created_by?: string
+  created_at?: string
+}> = [
   {
+    id: 'policy-id-1',
     policy_id: 'policy-1',
-    tenant_id: 'tenant-infysight',
+    version: 1,
     resource_type: 'users',
-    action: 'read',
-    effect: 'ALLOW',
-    conditions: {},
+    condition_expression: "user.role == 'admin'",
+    effect: 'Allow',
+    created_by: 'system',
     created_at: '2025-01-01T00:00:00Z',
-    updated_at: '2025-01-01T00:00:00Z',
   },
 ]
 
 export const policiesHandlers = [
-  http.get(`${API_BASE}/policies`, ({ request }) => {
-    const url = new URL(request.url)
-    const tenantId = url.searchParams.get('tenant_id')
-    if (!tenantId) {
-      return HttpResponse.json({ detail: 'tenant_id required' }, { status: 400 })
-    }
-    const filtered = mockPolicies.filter((p) => p.tenant_id === tenantId)
-    return HttpResponse.json({ data: filtered, total: filtered.length })
+  http.get(`${API_BASE}/policies`, () => {
+    return HttpResponse.json(mockPolicies)
   }),
 
-  http.get(`${API_BASE}/policies/:id`, ({ request, params }) => {
-    const url = new URL(request.url)
-    const tenantId = url.searchParams.get('tenant_id')
+  http.get(`${API_BASE}/policies/:id`, ({ params }) => {
     const policy = mockPolicies.find(
-      (p) => p.policy_id === params.id && p.tenant_id === tenantId
+      (p) => p.id === params.id || p.policy_id === params.id
     )
     if (!policy) {
       return HttpResponse.json({ detail: 'Not found' }, { status: 404 })
@@ -42,44 +57,41 @@ export const policiesHandlers = [
     return HttpResponse.json(policy)
   }),
 
-  http.post(`${API_BASE}/policies`, async ({ request }) => {
-    const url = new URL(request.url)
-    const tenantId = url.searchParams.get('tenant_id')
-    const body = await request.json() as any
+  // Create via /policies/register endpoint (special endpoint)
+  http.post(`${API_BASE}/policies/register`, async ({ request }) => {
+    const body = (await request.json()) as Record<string, unknown>
     const newPolicy = {
-      policy_id: `policy-${Date.now()}`,
-      tenant_id: tenantId!,
-      ...body,
+      id: `policy-id-${Date.now()}`,
+      policy_id: body.policy_id as string,
+      version: body.version as number,
+      resource_type: body.resource_type as string,
+      condition_expression: body.condition_expression as string,
+      effect: body.effect as string,
+      created_by: 'test-user',
       created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
     }
     mockPolicies.push(newPolicy)
     return HttpResponse.json(newPolicy, { status: 201 })
   }),
 
   http.put(`${API_BASE}/policies/:id`, async ({ request, params }) => {
-    const url = new URL(request.url)
-    const tenantId = url.searchParams.get('tenant_id')
     const index = mockPolicies.findIndex(
-      (p) => p.policy_id === params.id && p.tenant_id === tenantId
+      (p) => p.id === params.id || p.policy_id === params.id
     )
     if (index === -1) {
       return HttpResponse.json({ detail: 'Not found' }, { status: 404 })
     }
-    const body = await request.json() as any
+    const body = (await request.json()) as Record<string, unknown>
     mockPolicies[index] = {
       ...mockPolicies[index],
-      ...body,
-      updated_at: new Date().toISOString(),
+      ...(body as unknown as typeof mockPolicies[0]),
     }
     return HttpResponse.json(mockPolicies[index])
   }),
 
-  http.delete(`${API_BASE}/policies/:id`, ({ request, params }) => {
-    const url = new URL(request.url)
-    const tenantId = url.searchParams.get('tenant_id')
+  http.delete(`${API_BASE}/policies/:id`, ({ params }) => {
     const index = mockPolicies.findIndex(
-      (p) => p.policy_id === params.id && p.tenant_id === tenantId
+      (p) => p.id === params.id || p.policy_id === params.id
     )
     if (index === -1) {
       return HttpResponse.json({ detail: 'Not found' }, { status: 404 })

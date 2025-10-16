@@ -19,23 +19,20 @@ import {
   setUser,
   clearAuth,
 } from '@/utils/storage'
-import type { LoginResponse, RefreshResponse } from '@/types/auth'
+import type { LoginResponse } from '@/types/auth'
 
 /**
  * Refresh access token using HttpOnly refresh cookie
- * Called by api.ts interceptor on 401 responses
+ * DEPRECATED: Backend doesn't support token refresh - JWT tokens are single-use
+ * Kept for backward compatibility but will reject
  */
 export async function refreshAccessToken(): Promise<string> {
   try {
-    const response = await apiClient.post<RefreshResponse>(
-      '/auth/refresh'
-    )
-
-    const newToken = response.data.access_token
-    setAccessToken(newToken)
-    return newToken
+    // Backend doesn't have a refresh endpoint - tokens are non-refreshable
+    // User must re-login when token expires
+    clearAuth()
+    throw new Error('Token refresh not supported - please re-login')
   } catch (error) {
-    // Refresh failed - clear auth and force re-login
     clearAuth()
     throw error
   }
@@ -71,17 +68,18 @@ export const authProvider: AuthProvider = {
     }
   },
 
-  /**
+    /**
    * Logout user and clear stored credentials
-   * Calls backend logout endpoint and clears localStorage
+   * Calls backend revoke endpoint to invalidate token, then clears localStorage
    */
   logout: async () => {
     try {
-      // Call backend logout endpoint (invalidates refresh token cookie)
-      await apiClient.post('/auth/logout')
+      // Call backend revoke endpoint to invalidate the JWT token
+      // This stores the JWT ID (jti) in the database to prevent replay attacks
+      await apiClient.post('/auth/revoke')
     } catch (error) {
       // Log error but don't prevent logout - clear local state anyway
-      console.error('Logout API call failed:', error)
+      console.error('Token revocation failed:', error)
     } finally {
       // Always clear auth data from localStorage
       clearAuth()

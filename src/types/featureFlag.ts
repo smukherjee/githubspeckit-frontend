@@ -1,22 +1,20 @@
 /**
  * Feature Flag Type Definitions (T022 - Part 2 of 5)
  * 
- * Runtime configuration toggles per tenant. Values stored as JSON object.
- * Flag types: boolean (on/off), string (key), number (quota), json (complex config)
- * Status: enabled (active), disabled (inactive but preserved)
+ * Runtime configuration toggles per tenant.
+ * State: enabled (active), disabled (inactive but preserved)
+ * Variant: Optional string value for A/B testing or deployment variants
  */
 
-export type FlagType = 'boolean' | 'string' | 'number' | 'json'
-
-export type FlagStatus = 'enabled' | 'disabled'
+export type FlagState = 'enabled' | 'disabled'
 
 export interface FeatureFlag {
+  id: string // React-Admin requires this field for row keys
   flag_id: string
+  key: string // e.g., "enable_advanced_reporting"
+  state: FlagState // "enabled" or "disabled"
+  variant?: string // Optional variant value (e.g., "v1", "v2")
   tenant_id: string
-  name: string // e.g., "enable_advanced_reporting"
-  flag_type: FlagType
-  status: FlagStatus
-  values: Record<string, unknown> // JSON object, e.g., { default: true, premium: false }
-  created_at: string // ISO 8601 datetime
-  updated_at: string // ISO 8601 datetime
+  created_at?: string // ISO 8601 datetime (optional in responses)
+  updated_at?: string // ISO 8601 datetime (optional in responses)
 }

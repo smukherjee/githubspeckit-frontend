@@ -20,30 +20,45 @@ import { apiClient } from '@/utils/api'
  * Handles meta.tenant_id for query parameters
  * Returns format expected by ra-data-simple-rest
  */
-const httpClient = async (url: string, options: any = {}) => {
-  const config: any = {
-    method: options.method || 'GET',
+const httpClient = async (url: string, options?: Record<string, unknown>) => {
+  const opts = options || {}
+  const config: Record<string, unknown> = {
+    method: (opts.method as string) || 'GET',
     url,
-    ...options,
+    ...opts,
   }
 
-  if (options.body) {
-    config.data = options.body
+  if (opts.body) {
+    config.data = opts.body
   }
 
   // Handle meta for additional query params (e.g., tenant_id)
-  if (options.meta && options.meta.tenant_id) {
+  const meta = opts.meta as Record<string, string> | undefined
+  if (meta && meta.tenant_id) {
     const separator = url.includes('?') ? '&' : '?'
-    config.url = `${url}${separator}tenant_id=${options.meta.tenant_id}`
+    config.url = `${url}${separator}tenant_id=${meta.tenant_id}`
   }
 
-  const response = await apiClient(config)
+  try {
+    const response = await apiClient.request(config as Record<string, unknown>)
 
-  return {
-    status: response.status,
-    headers: new Headers(response.headers as any),
-    body: JSON.stringify(response.data),
-    json: response.data,
+    const headersList: Array<[string, string]> = []
+    for (const [key, value] of Object.entries(response.headers)) {
+      headersList.push([key, String(value)])
+    }
+
+    return {
+      status: response.status,
+      headers: new Headers(headersList),
+      body: JSON.stringify(response.data),
+      json: response.data,
+    }
+  } catch (error) {
+    // Re-throw with meaningful error message to prevent Polyglot translation errors
+    if (error instanceof Error) {
+      throw new Error(error.message || 'Request failed')
+    }
+    throw new Error('Request failed')
   }
 }
 
@@ -97,7 +112,7 @@ function shouldInjectTenantId(resource: string, type: string): boolean {
 export function createDataProvider(
   selectedTenantId?: string | null
 ): DataProvider {
-  const baseDataProvider = simpleRestProvider(API_BASE_URL, httpClient)
+  const baseDataProvider = simpleRestProvider(API_BASE_URL, httpClient as any)
 
   return {
     ...baseDataProvider,
@@ -105,9 +120,54 @@ export function createDataProvider(
     getList: async (resource, params) => {
       // Special handling for tenants resource
       if (resource === 'tenants') {
-        const response = await apiClient.get('/tenants')
-        const tenants = response.data.tenants || []
-        return { data: tenants, total: tenants.length }
+        try {
+          const response = await apiClient.get('/tenants')
+          let tenants: Record<string, unknown>[] = []
+          
+          // Backend returns an array directly, not {tenants: [...]}
+          if (Array.isArray(response.data)) {
+            tenants = response.data
+          } else if (response.data?.tenants && Array.isArray(response.data.tenants)) {
+            tenants = response.data.tenants
+          }
+          
+          return { data: tenants, total: tenants.length }
+        } catch (error) {
+          console.error('Tenants request failed:', error)
+          return { data: [], total: 0 }
+        }
+      }
+
+      // Special handling for resources that don't support standard pagination params
+      if (['feature-flags', 'policies', 'audit-events', 'invitations'].includes(resource)) {
+        try {
+          let url = `/${resource}`
+          const tenantId = getTenantId(selectedTenantId)
+          if (tenantId && resource !== 'audit-events') {
+            // audit-events doesn't need tenant_id filter at the param level
+            url += `?tenant_id=${tenantId}`
+          }
+          const response = await apiClient.get(url)
+          
+          // Handle different response formats
+          const data = response.data
+          if (Array.isArray(data)) {
+            return { data, total: data.length }
+          } else if (data && typeof data === 'object') {
+            // Extract array from common response patterns
+            const keys = Object.keys(data)
+            const arrayKey = keys.find(k => Array.isArray(data[k]))
+            if (arrayKey) {
+              const arr = data[arrayKey]
+              return { data: arr, total: arr.length }
+            }
+          }
+          
+          return { data: [], total: 0 }
+        } catch (error) {
+          console.error(`${resource} request failed:`, error)
+          return { data: [], total: 0 }
+        }
       }
 
       // Inject tenant_id if needed
@@ -172,12 +232,39 @@ export function createDataProvider(
     },
 
     create: async (resource, params) => {
+      // Special handling for policies: use /policies/register endpoint
+      if (resource === 'policies') {
+        try {
+          const response = await apiClient.post('/policies/register', params.data)
+          return { data: response.data }
+        } catch (error) {
+          console.error('Policy registration failed:', error)
+          throw error
+        }
+      }
+
+      // Disable create for invitations (read-only, only accept endpoint supported)
+      if (resource === 'invitations') {
+        throw new Error('Invitations are read-only. Use the accept endpoint to accept invitations.')
+      }
+
+      // Special handling for feature-flags: include tenant_id in payload
+      if (resource === 'feature-flags') {
+        const tenantId = getTenantId(selectedTenantId)
+        if (tenantId) {
+          params.data = {
+            ...params.data,
+            tenant_id: tenantId,
+          }
+        }
+      }
+
       // Inject tenant_id if needed
       if (shouldInjectTenantId(resource, 'create')) {
         const tenantId = getTenantId(selectedTenantId)
         if (tenantId) {
-          params.meta = {
-            ...params.meta,
+          params.data = {
+            ...params.data,
             tenant_id: tenantId,
           }
         }
@@ -187,12 +274,22 @@ export function createDataProvider(
     },
 
     update: async (resource, params) => {
+      // Disable update for audit-events (read-only)
+      if (resource === 'audit-events') {
+        throw new Error('Audit events are read-only.')
+      }
+
+      // Disable update for invitations (read-only, only accept endpoint supported)
+      if (resource === 'invitations') {
+        throw new Error('Invitations are read-only. Use the accept endpoint to accept invitations.')
+      }
+
       // Inject tenant_id if needed
       if (shouldInjectTenantId(resource, 'update')) {
         const tenantId = getTenantId(selectedTenantId)
         if (tenantId) {
-          params.meta = {
-            ...params.meta,
+          params.data = {
+            ...params.data,
             tenant_id: tenantId,
           }
         }
@@ -217,6 +314,16 @@ export function createDataProvider(
     },
 
     delete: async (resource, params) => {
+      // Disable delete for audit-events (read-only)
+      if (resource === 'audit-events') {
+        throw new Error('Audit events are read-only.')
+      }
+
+      // Disable delete for invitations (read-only, only revoke endpoint supported)
+      if (resource === 'invitations') {
+        throw new Error('Invitations cannot be deleted. Use the revoke endpoint to revoke invitations.')
+      }
+
       // Inject tenant_id if needed
       if (shouldInjectTenantId(resource, 'delete')) {
         const tenantId = getTenantId(selectedTenantId)

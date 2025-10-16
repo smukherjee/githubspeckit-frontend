@@ -2,19 +2,21 @@
  * Policy Type Definitions (T022 - Part 3 of 5)
  * 
  * RBAC policy engine rules for resource-level authorization.
- * Effects: ALLOW (grant), DENY (explicit block), ABSTAIN (no opinion)
- * Conditions: JSON object with policy evaluation rules (e.g., { ip_range: "10.0.0.0/8" })
+ * Effects: Allow (grant), Deny (explicit block)
+ * Condition Expression: String representation of policy rules (evaluated by backend)
+ * Version: Policy version number for tracking changes
  */
 
-export type PolicyEffect = 'ALLOW' | 'DENY' | 'ABSTAIN'
+export type PolicyEffect = 'Allow' | 'Deny'
 
 export interface Policy {
+  id: string // React-Admin requires this field for row keys
   policy_id: string
-  tenant_id: string
+  version: number // Policy version for tracking updates
   resource_type: string // e.g., "users", "tenants", "policies"
-  action: string // e.g., "read", "create", "update", "delete"
-  effect: PolicyEffect
-  conditions: Record<string, unknown> // JSON object for policy rules
-  created_at: string // ISO 8601 datetime
-  updated_at: string // ISO 8601 datetime
+  condition_expression: string // String representation of conditions (e.g., "user.role == 'admin'")
+  effect: PolicyEffect // "Allow" or "Deny"
+  created_by?: string // User who created the policy (optional)
+  created_at?: string // ISO 8601 datetime (optional in responses)
+  updated_at?: string // ISO 8601 datetime (optional in responses)
 }
