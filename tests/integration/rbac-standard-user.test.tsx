@@ -21,7 +21,7 @@ describe('T045: Standard User Limited Access', () => {
   it('should allow standard user to login', async () => {
     await authProvider.login({
       username: 'infysightuser@infysight.com',
-      password: 'User@1234',
+      password: 'infysightsa123',
     })
 
     const permissions = await authProvider.getPermissions()
@@ -67,8 +67,8 @@ describe('T045: Standard User Limited Access', () => {
 
     const dataProvider = createDataProvider()
     
-    // Standard users typically don't have create permissions
-    // This will be enforced by backend returning 403
+    // Standard users don't have permission to create users
+    // Backend should return 403 Forbidden
     await expect(
       dataProvider.create('users', {
         data: {

@@ -56,9 +56,9 @@ export const authHandlers = [
 
     // Simple password check (in real implementation, backend validates)
     const validPasswords: Record<string, string> = {
-      'infysightsa@infysight.com': 'Admin@1234',
-      'infysightadmin@infysight.com': 'Admin@1234',
-      'infysightuser@infysight.com': 'User@1234',
+      'infysightsa@infysight.com': 'infysightsa123',
+      'infysightadmin@infysight.com': 'infysightsa123',
+      'infysightuser@infysight.com': 'infysightsa123',
     }
 
     if (body.password !== validPasswords[body.email]) {

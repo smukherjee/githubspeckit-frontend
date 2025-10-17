@@ -20,10 +20,10 @@ describe('T038: Tenant Admin User Management', () => {
     localStorage.clear()
   })
 
-  it('should allow tenant admin to login', async () => {
+  it('should allow tenant_admin to login', async () => {
     await authProvider.login({
       username: 'infysightadmin@infysight.com',
-      password: 'Admin@1234',
+      password: 'infysightsa123',
     })
 
     const user = getUser()
@@ -75,7 +75,7 @@ describe('T038: Tenant Admin User Management', () => {
 
   it('should create user with tenant_admin tenant_id', async () => {
     setUser({
-      user_id: 'user-admin',
+      user_id: 'user-admin-1',
       email: 'infysightadmin@infysight.com',
       tenant_id: 'tenant-infysight',
       roles: ['tenant_admin'],
@@ -83,6 +83,9 @@ describe('T038: Tenant Admin User Management', () => {
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
     })
+    
+    // Set access token for RBAC checking
+    localStorage.setItem('access_token', 'mock-access-token-user-admin-1')
 
     const dataProvider = createDataProvider()
     

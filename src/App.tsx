@@ -11,9 +11,10 @@
  */
 
 import { Admin, Resource, defaultTheme } from 'react-admin'
+import { useMemo } from 'react'
 import { authProvider } from '@/providers/authProvider'
-import { dataProvider } from '@/providers/dataProvider'
-import { TenantProvider } from '@/contexts/TenantContext'
+import { createDataProvider } from '@/providers/dataProvider'
+import { TenantProvider, useTenant } from '@/contexts/TenantContext'
 import { ErrorBoundary } from '@/components/layout/ErrorBoundary'
 import { Layout } from '@/components/layout/Layout'
 import { ForbiddenPage } from '@/components/layout/ForbiddenPage'
@@ -40,7 +41,6 @@ import {
 } from '@/resources/policies'
 import {
   InvitationList,
-  InvitationCreate,
   InvitationShow,
 } from '@/resources/invitations'
 import { AuditEventList, AuditEventShow } from '@/resources/auditEvents'
@@ -87,67 +87,86 @@ const theme = {
   },
 }
 
+// Inner component that has access to TenantContext
+function AdminApp() {
+  const { selectedTenantId } = useTenant()
+  
+  // Recreate dataProvider when selectedTenantId changes
+  const dataProvider = useMemo(
+    () => createDataProvider(selectedTenantId),
+    [selectedTenantId]
+  )
+
+  return (
+    <Admin
+      authProvider={authProvider}
+      dataProvider={dataProvider}
+      theme={theme}
+      layout={Layout}
+      catchAll={ForbiddenPage}
+      requireAuth
+    >
+      {/* T049: User Resource */}
+      <Resource
+        name="users"
+        list={UserList}
+        create={UserCreate}
+        edit={UserEdit}
+        show={UserShow}
+        icon={PeopleIcon}
+      />
+      {/* T049: Tenant Resource (Superadmin Only) */}
+      <Resource
+        name="tenants"
+        list={TenantList}
+        create={TenantCreate}
+        edit={TenantEdit}
+        show={TenantShow}
+        icon={BusinessIcon}
+      />
+      {/* T049: Feature Flags Resource */}
+      <Resource
+        name="feature-flags"
+        list={FeatureFlagList}
+        create={FeatureFlagCreate}
+        edit={FeatureFlagEdit}
+        show={FeatureFlagShow}
+        icon={FlagIcon}
+        options={{ label: 'Feature Flags' }}
+      />
+      {/* T049: Policies Resource */}
+      <Resource
+        name="policies"
+        list={PolicyList}
+        create={PolicyCreate}
+        edit={PolicyEdit}
+        show={PolicyShow}
+        icon={PolicyIcon}
+      />
+      {/* T049: Invitations Resource */}
+      <Resource
+        name="invitations"
+        list={InvitationList}
+        show={InvitationShow}
+        icon={MailIcon}
+      />
+      {/* T049: Audit Events Resource (Read-Only) */}
+      <Resource
+        name="audit-events"
+        list={AuditEventList}
+        show={AuditEventShow}
+        icon={HistoryIcon}
+        options={{ label: 'Audit Events' }}
+      />
+    </Admin>
+  )
+}
+
 function App() {
   return (
     <ErrorBoundary>
       <TenantProvider>
-        <Admin
-          authProvider={authProvider}
-          dataProvider={dataProvider}
-          theme={theme}
-          layout={Layout}
-          catchAll={ForbiddenPage}
-          requireAuth
-        >
-          <Resource
-            name="users"
-            list={UserList}
-            create={UserCreate}
-            edit={UserEdit}
-            show={UserShow}
-            icon={PeopleIcon}
-          />
-          <Resource
-            name="tenants"
-            list={TenantList}
-            create={TenantCreate}
-            edit={TenantEdit}
-            show={TenantShow}
-            icon={BusinessIcon}
-            options={{ label: 'Tenants' }}
-          />
-          <Resource
-            name="feature-flags"
-            list={FeatureFlagList}
-            create={FeatureFlagCreate}
-            edit={FeatureFlagEdit}
-            show={FeatureFlagShow}
-            icon={FlagIcon}
-            options={{ label: 'Feature Flags' }}
-          />
-          <Resource
-            name="policies"
-            list={PolicyList}
-            create={PolicyCreate}
-            edit={PolicyEdit}
-            show={PolicyShow}
-            icon={PolicyIcon}
-          />
-          <Resource
-            name="invitations"
-            list={InvitationList}
-            create={InvitationCreate}
-            show={InvitationShow}
-            icon={MailIcon}
-          />
-          <Resource
-            name="audit-events"
-            list={AuditEventList}
-            show={AuditEventShow}
-            icon={HistoryIcon}
-            options={{ label: 'Audit Events' }}
-          />
-        </Admin>
+        <AdminApp />
       </TenantProvider>
     </ErrorBoundary>
   )

@@ -23,7 +23,7 @@ describe('T034: Superadmin Login & Tenant Switching', () => {
   it('should allow superadmin to login with correct credentials', async () => {
     await authProvider.login({
       username: 'infysightsa@infysight.com',
-      password: 'Admin@1234',
+      password: 'infysightsa123',
     })
 
     const user = getUser()
@@ -73,7 +73,7 @@ describe('T034: Superadmin Login & Tenant Switching', () => {
 
   it('should allow superadmin to create user in selected tenant', async () => {
     setUser({
-      user_id: 'user-superadmin',
+      user_id: 'user-sa-1',
       email: 'infysightsa@infysight.com',
       tenant_id: 'tenant-infysight',
       roles: ['superadmin'],
@@ -81,6 +81,9 @@ describe('T034: Superadmin Login & Tenant Switching', () => {
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
     })
+    
+    // Set access token for RBAC checking
+    localStorage.setItem('access_token', 'mock-access-token-user-sa-1')
 
     // Create dataProvider with selected tenant
     const dataProvider = createDataProvider('tenant-acme')

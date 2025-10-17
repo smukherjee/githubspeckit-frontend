@@ -61,7 +61,7 @@ describe('T042: Token Expiration Handling', () => {
     // Re-login
     await authProvider.login({
       username: 'infysightsa@infysight.com',
-      password: 'Admin@1234',
+      password: 'infysightsa123',
     })
 
     const user = getUser()

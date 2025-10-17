@@ -46,15 +46,59 @@ const mockUsers = [
     created_at: '2025-01-02T00:00:00Z',
     updated_at: '2025-01-02T00:00:00Z',
   },
+  {
+    user_id: 'user-acme-2',
+    tenant_id: 'tenant-acme',
+    email: 'user@acme.com',
+    roles: ['standard'],
+    status: 'active',
+    created_at: '2025-01-02T00:00:00Z',
+    updated_at: '2025-01-02T00:00:00Z',
+  },
+  {
+    user_id: 'user-acme-3',
+    tenant_id: 'tenant-acme',
+    email: 'dev@acme.com',
+    roles: ['standard'],
+    status: 'active',
+    created_at: '2025-01-03T00:00:00Z',
+    updated_at: '2025-01-03T00:00:00Z',
+  },
 ]
 
 export const usersHandlers = [
-  // GET /api/v1/users (paginated list)
+    // GET /api/v1/users (paginated list)
   http.get(`${API_BASE}/users`, ({ request }) => {
     const url = new URL(request.url)
-    const tenantId = url.searchParams.get('tenant_id')
     
-    // Verify tenant_id is present (required for all requests except /me)
+    // Parse ra-data-simple-rest format: range=[0,24], sort=["field","ASC"], filter={"field":"value"}
+    const rangeParam = url.searchParams.get('range')
+    const sortParam = url.searchParams.get('sort')
+    const filterParam = url.searchParams.get('filter')
+
+    // Extract tenant_id from either direct query param OR filter object
+    let tenantId: string | null = url.searchParams.get('tenant_id') // Direct query param
+    const additionalFilters: Record<string, unknown> = {}
+    
+    if (filterParam) {
+      try {
+        const filters = JSON.parse(filterParam)
+        // Override with tenant_id from filter if present
+        if (filters.tenant_id) {
+          tenantId = filters.tenant_id
+        }
+        // Copy other filters (excluding tenant_id)
+        Object.keys(filters).forEach((key) => {
+          if (key !== 'tenant_id') {
+            additionalFilters[key] = filters[key]
+          }
+        })
+      } catch {
+        // Ignore invalid filter JSON
+      }
+    }
+    
+    // Verify tenant_id is present (required for all requests)
     if (!tenantId) {
       return HttpResponse.json(
         { detail: 'tenant_id query parameter is required' },
@@ -63,18 +107,68 @@ export const usersHandlers = [
     }
 
     // Filter users by tenant
-    const filteredUsers = mockUsers.filter((u) => u.tenant_id === tenantId)
+    let filteredUsers = mockUsers.filter((u) => u.tenant_id === tenantId)
 
-    // Pagination params (react-admin defaults)
-    const page = parseInt(url.searchParams.get('page') || '1')
-    const perPage = parseInt(url.searchParams.get('perPage') || '10')
-    const start = (page - 1) * perPage
-    const end = start + perPage
-
-    return HttpResponse.json({
-      data: filteredUsers.slice(start, end),
-      total: filteredUsers.length,
+    // Apply additional filters if provided
+    Object.keys(additionalFilters).forEach((key) => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      filteredUsers = filteredUsers.filter((u: any) => {
+        if (Array.isArray(additionalFilters[key])) {
+          return additionalFilters[key].includes(u[key])
+        }
+        return u[key] === additionalFilters[key]
+      })
     })
+
+    // Apply sorting if provided
+    if (sortParam) {
+      try {
+        const [field, order] = JSON.parse(sortParam)
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        filteredUsers.sort((a: any, b: any) => {
+          if (a[field] < b[field]) return order === 'ASC' ? -1 : 1
+          if (a[field] > b[field]) return order === 'ASC' ? 1 : -1
+          return 0
+        })
+      } catch {
+        // Ignore invalid sort JSON
+      }
+    }
+
+    // Apply pagination
+    let start = 0
+    let end = filteredUsers.length
+    let hasRangeParam = false
+    
+    if (rangeParam) {
+      hasRangeParam = true
+      try {
+        [start, end] = JSON.parse(rangeParam)
+        end = end + 1 // range is inclusive, so [0,24] means 25 items
+      } catch {
+        // Ignore invalid range JSON
+        hasRangeParam = false
+      }
+    }
+
+    // Return different formats based on whether it's ra-data-simple-rest or plain fetch
+    if (hasRangeParam) {
+      // ra-data-simple-rest format: plain array + Content-Range header
+      return HttpResponse.json(
+        filteredUsers.slice(start, end),
+        {
+          headers: {
+            'Content-Range': `users ${start}-${Math.min(end - 1, filteredUsers.length - 1)}/${filteredUsers.length}`,
+          },
+        }
+      )
+    } else {
+      // Plain fetch format: {data: [...], total: ...}
+      return HttpResponse.json({
+        data: filteredUsers,
+        total: filteredUsers.length,
+      })
+    }
   }),
 
   // GET /api/v1/users/:id (single user)
@@ -114,6 +208,30 @@ export const usersHandlers = [
       )
     }
 
+    // Extract user role from Authorization token (mock implementation)
+    const authHeader = request.headers.get('Authorization')
+    let userRole = 'standard' // Default to most restrictive role
+    
+    if (authHeader) {
+      const token = authHeader.replace('Bearer ', '')
+      // Extract role from mock token format: mock-access-token-{user_id}
+      if (token.includes('user-sa-')) {
+        userRole = 'superadmin'
+      } else if (token.includes('user-admin-')) {
+        userRole = 'tenant_admin'
+      } else {
+        userRole = 'standard'
+      }
+    }
+
+    // RBAC: Only superadmin and tenant_admin can create users
+    if (userRole === 'standard') {
+      return HttpResponse.json(
+        { detail: 'You do not have permission to create users' },
+        { status: 403 }
+      )
+    }
+
     const body = await request.json() as {
       email: string
       roles: string[]
@@ -146,6 +264,30 @@ export const usersHandlers = [
       return HttpResponse.json(
         { detail: 'tenant_id query parameter is required' },
         { status: 400 }
+      )
+    }
+
+    // Extract user role from Authorization token (mock implementation)
+    const authHeader = request.headers.get('Authorization')
+    let userRole = 'standard' // Default to most restrictive role
+    
+    if (authHeader) {
+      const token = authHeader.replace('Bearer ', '')
+      // Extract role from mock token format: mock-access-token-{user_id}
+      if (token.includes('user-sa-')) {
+        userRole = 'superadmin'
+      } else if (token.includes('user-admin-')) {
+        userRole = 'tenant_admin'
+      } else {
+        userRole = 'standard'
+      }
+    }
+
+    // RBAC: Only superadmin and tenant_admin can update users
+    if (userRole === 'standard') {
+      return HttpResponse.json(
+        { detail: 'You do not have permission to update users' },
+        { status: 403 }
       )
     }
 
@@ -182,6 +324,30 @@ export const usersHandlers = [
       return HttpResponse.json(
         { detail: 'tenant_id query parameter is required' },
         { status: 400 }
+      )
+    }
+
+    // Extract user role from Authorization token (mock implementation)
+    const authHeader = request.headers.get('Authorization')
+    let userRole = 'standard' // Default to most restrictive role
+    
+    if (authHeader) {
+      const token = authHeader.replace('Bearer ', '')
+      // Extract role from mock token format: mock-access-token-{user_id}
+      if (token.includes('user-sa-')) {
+        userRole = 'superadmin'
+      } else if (token.includes('user-admin-')) {
+        userRole = 'tenant_admin'
+      } else {
+        userRole = 'standard'
+      }
+    }
+
+    // RBAC: Only superadmin and tenant_admin can delete users
+    if (userRole === 'standard') {
+      return HttpResponse.json(
+        { detail: 'You do not have permission to delete users' },
+        { status: 403 }
       )
     }
 

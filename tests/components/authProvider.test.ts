@@ -19,7 +19,7 @@ describe('T017: authProvider.login()', () => {
   it('should store access_token in localStorage on success', async () => {
     await authProvider.login({ 
       username: 'infysightsa@infysight.com', 
-      password: 'Admin@1234' 
+      password: 'infysightsa123' 
     })
     
     const token = getAccessToken()
@@ -30,7 +30,7 @@ describe('T017: authProvider.login()', () => {
   it('should store user object in localStorage on success', async () => {
     await authProvider.login({ 
       username: 'infysightsa@infysight.com', 
-      password: 'Admin@1234' 
+      password: 'infysightsa123' 
     })
     
     const user = getUser()
@@ -112,7 +112,6 @@ describe('T020: authProvider.logout()', () => {
       status: 'active',
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
     })
     
     await authProvider.logout()
@@ -135,7 +134,6 @@ describe('T021: authProvider.getPermissions()', () => {
       roles: ['superadmin', 'tenant_admin'],
       status: 'active',
       created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
     })
     

@@ -78,10 +78,10 @@ describe('T024: dataProvider.getOne() with tenant_id', () => {
     })
 
     const dataProvider = createDataProvider()
-    const result = await dataProvider.getOne('users', { user_id: 'user-1' })
+    const result = await dataProvider.getOne('users', { id: 'user-acme-1' })
 
     expect(result.data).toBeDefined()
-    expect(result.data.id).toBe('user-1')
+    expect(result.data.user_id).toBe('user-acme-1')
   })
 })
 
@@ -92,7 +92,7 @@ describe('T025: dataProvider.create() with tenant_id', () => {
 
   it('should inject tenant_id in request body', async () => {
     setUser({
-      user_id: 'user-1',
+      user_id: 'user-admin-1',
       email: 'admin@acme.com',
       tenant_id: 'tenant-acme',
       roles: ['tenant_admin'],
@@ -100,6 +100,9 @@ describe('T025: dataProvider.create() with tenant_id', () => {
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
     })
+    
+    // Set access token for RBAC checking
+    localStorage.setItem('access_token', 'mock-access-token-user-admin-1')
 
     const dataProvider = createDataProvider()
     const result = await dataProvider.create('users', {
@@ -164,7 +167,7 @@ describe('T026: dataProvider.update() with tenant_id', () => {
 
   it('should inject tenant_id in request body', async () => {
     setUser({
-      user_id: 'user-1',
+      user_id: 'user-admin-1',
       email: 'admin@acme.com',
       tenant_id: 'tenant-acme',
       roles: ['tenant_admin'],
@@ -172,12 +175,15 @@ describe('T026: dataProvider.update() with tenant_id', () => {
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
     })
+    
+    // Set access token for RBAC checking
+    localStorage.setItem('access_token', 'mock-access-token-user-admin-1')
 
     const dataProvider = createDataProvider()
     const result = await dataProvider.update('users', {
-      user_id: 'user-2',
+      id: 'user-acme-2',
       data: { email: 'updated@acme.com' },
-      previousData: { user_id: 'user-2', email: 'old@acme.com' },
+      previousData: { user_id: 'user-acme-2', email: 'old@acme.com' },
     })
 
     expect(result.data).toBeDefined()
@@ -213,7 +219,7 @@ describe('T027: dataProvider.delete() with tenant_id', () => {
 
   it('should inject tenant_id as query param', async () => {
     setUser({
-      user_id: 'user-1',
+      user_id: 'user-admin-1',
       email: 'admin@acme.com',
       tenant_id: 'tenant-acme',
       roles: ['tenant_admin'],
@@ -221,11 +227,14 @@ describe('T027: dataProvider.delete() with tenant_id', () => {
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
     })
+    
+    // Set access token for RBAC checking
+    localStorage.setItem('access_token', 'mock-access-token-user-admin-1')
 
     const dataProvider = createDataProvider()
     const result = await dataProvider.delete('users', {
-      user_id: 'user-2',
-      previousData: { user_id: 'user-2' },
+      id: 'user-acme-2',
+      previousData: { user_id: 'user-acme-2' },
     })
 
     expect(result.data).toBeDefined()

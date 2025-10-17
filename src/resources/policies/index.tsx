@@ -7,25 +7,36 @@ import {
   List,
   Datagrid,
   TextField,
+  DateField,
   Create,
   Edit,
   Show,
   SimpleForm,
   SimpleShowLayout,
   TextInput,
+  NumberInput,
   SelectInput,
   required,
+  BulkDeleteButton,
 } from 'react-admin'
 import { Grid } from '@mui/material'
+
+// Bulk actions for policies
+const PolicyBulkActionButtons = () => (
+  <>
+    <BulkDeleteButton />
+  </>
+)
 
 export function PolicyList() {
   return (
     <List>
-      <Datagrid>
+      <Datagrid rowClick="edit" bulkActionButtons={<PolicyBulkActionButtons />}>
         <TextField source="resource_type" label="Resource Type" />
-        <TextField source="condition_expression" label="Condition" />
         <TextField source="effect" label="Effect" />
         <TextField source="version" label="Version" />
+        <TextField source="condition_expression" label="Condition" />
+        <DateField source="created_at" label="Created" />
       </Datagrid>
     </List>
   )
@@ -36,24 +47,6 @@ export function PolicyCreate() {
     <Create>
       <SimpleForm>
         <Grid container spacing={2}>
-          <Grid item xs={12} md={6}>
-            <TextInput
-              source="policy_id"
-              label="Policy ID"
-              validate={[required()]}
-              fullWidth
-            />
-          </Grid>
-          <Grid item xs={12} md={6}>
-            <TextInput
-              source="version"
-              label="Version"
-              type="number"
-              defaultValue={1}
-              validate={[required()]}
-              fullWidth
-            />
-          </Grid>
           <Grid item xs={12} md={6}>
             <TextInput
               source="resource_type"
@@ -70,6 +63,16 @@ export function PolicyCreate() {
                 { id: 'Allow', name: 'Allow' },
                 { id: 'Deny', name: 'Deny' },
               ]}
+              defaultValue="Allow"
+              validate={[required()]}
+              fullWidth
+            />
+          </Grid>
+          <Grid item xs={12} md={6}>
+            <NumberInput
+              source="version"
+              label="Version"
+              defaultValue={1}
               validate={[required()]}
               fullWidth
             />
@@ -97,23 +100,6 @@ export function PolicyEdit() {
         <Grid container spacing={2}>
           <Grid item xs={12} md={6}>
             <TextInput
-              source="policy_id"
-              label="Policy ID"
-              validate={[required()]}
-              fullWidth
-            />
-          </Grid>
-          <Grid item xs={12} md={6}>
-            <TextInput
-              source="version"
-              label="Version"
-              type="number"
-              validate={[required()]}
-              fullWidth
-            />
-          </Grid>
-          <Grid item xs={12} md={6}>
-            <TextInput
               source="resource_type"
               label="Resource Type"
               validate={[required()]}
@@ -132,6 +118,14 @@ export function PolicyEdit() {
               fullWidth
             />
           </Grid>
+          <Grid item xs={12} md={6}>
+            <NumberInput
+              source="version"
+              label="Version"
+              validate={[required()]}
+              fullWidth
+            />
+          </Grid>
           <Grid item xs={12}>
             <TextInput
               source="condition_expression"
@@ -143,6 +137,20 @@ export function PolicyEdit() {
             />
           </Grid>
         </Grid>
+        <Grid container spacing={2} sx={{ mt: 2 }}>
+          <Grid item xs={12} md={6}>
+            <TextField source="policy_id" label="Policy ID" />
+          </Grid>
+          <Grid item xs={12} md={6}>
+            <TextField source="created_by" label="Created By" />
+          </Grid>
+          <Grid item xs={12} md={6}>
+            <DateField source="created_at" label="Created" showTime />
+          </Grid>
+          <Grid item xs={12} md={6}>
+            <DateField source="updated_at" label="Updated" showTime />
+          </Grid>
+        </Grid>
       </SimpleForm>
     </Edit>
   )
@@ -152,14 +160,14 @@ export function PolicyShow() {
   return (
     <Show>
       <SimpleShowLayout>
-        <TextField source="id" label="ID" />
         <TextField source="policy_id" label="Policy ID" />
         <TextField source="version" label="Version" />
         <TextField source="resource_type" label="Resource Type" />
-        <TextField source="condition_expression" label="Condition Expression" />
         <TextField source="effect" label="Effect" />
+        <TextField source="condition_expression" label="Condition Expression" />
         <TextField source="created_by" label="Created By" />
-        <TextField source="created_at" label="Created At" />
+        <DateField source="created_at" label="Created" showTime />
+        <DateField source="updated_at" label="Updated" showTime />
       </SimpleShowLayout>
     </Show>
   )

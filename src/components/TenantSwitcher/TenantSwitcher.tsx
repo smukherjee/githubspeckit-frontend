@@ -24,10 +24,6 @@ import { useTenant } from '@/contexts/TenantContext'
 import { apiClient } from '@/utils/api'
 import type { Tenant } from '@/types/tenant'
 
-interface TenantsListResponse {
-  tenants: Tenant[]
-}
-
 export function TenantSwitcher() {
   const { permissions } = usePermissions()
   const { selectedTenantId, setSelectedTenantId } = useTenant()
@@ -48,21 +44,21 @@ export function TenantSwitcher() {
     const fetchTenants = async () => {
       try {
         setLoading(true)
-        const response = await apiClient.get<TenantsListResponse>(
-          '/tenants',
-          {
-            params: {
-              _sort: 'name',
-              _order: 'ASC',
-            },
-          }
-        )
-        setTenants(response.data.tenants)
+        const response = await apiClient.get('/tenants')
+        
+        // Backend may return {tenants: [...]} or just [...]
+        let tenantsList: Tenant[] = []
+        if (Array.isArray(response.data)) {
+          tenantsList = response.data
+        } else if (response.data?.tenants && Array.isArray(response.data.tenants)) {
+          tenantsList = response.data.tenants
+        }
+        
+        setTenants(tenantsList)
         
         // Update selected tenant if it no longer exists
-        const options = response.data.tenants ?? []
-        if (selectedTenantId && !options.some(t => t.tenant_id === selectedTenantId)) {
-          setSelectedTenantId(options[0]?.tenant_id ?? '')
+        if (selectedTenantId && !tenantsList.some(t => t.tenant_id === selectedTenantId)) {
+          setSelectedTenantId(tenantsList[0]?.tenant_id ?? '')
         }
       } catch (error) {
         console.error('Failed to fetch tenants:', error)

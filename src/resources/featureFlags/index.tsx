@@ -8,6 +8,7 @@ import {
   Datagrid,
   SimpleList,
   TextField,
+  DateField,
   Create,
   Edit,
   Show,
@@ -16,8 +17,19 @@ import {
   TextInput,
   SelectInput,
   required,
+  BulkUpdateButton,
+  BulkDeleteButton,
 } from 'react-admin'
 import { Grid, useMediaQuery, type Theme } from '@mui/material'
+
+// Bulk actions for feature flags
+const FeatureFlagBulkActionButtons = () => (
+  <>
+    <BulkUpdateButton label="Enable" data={{ state: 'enabled' }} />
+    <BulkUpdateButton label="Disable" data={{ state: 'disabled' }} />
+    <BulkDeleteButton />
+  </>
+)
 
 export function FeatureFlagList() {
   const isSmall = useMediaQuery<Theme>((theme) => theme.breakpoints.down('lg'))
@@ -30,10 +42,12 @@ export function FeatureFlagList() {
           secondaryText={(record) => `${record.state || 'unknown'} • ${record.variant || 'n/a'}`}
         />
       ) : (
-        <Datagrid>
+        <Datagrid rowClick="edit" bulkActionButtons={<FeatureFlagBulkActionButtons />}>
           <TextField source="key" label="Key" />
           <TextField source="state" label="State" />
           <TextField source="variant" label="Variant" />
+          <DateField source="created_at" label="Created" />
+          <DateField source="updated_at" label="Updated" />
         </Datagrid>
       )}
     </List>
@@ -96,8 +110,16 @@ export function FeatureFlagEdit() {
           <Grid item xs={12} md={6}>
             <TextInput source="variant" label="Variant" fullWidth />
           </Grid>
+        </Grid>
+        <Grid container spacing={2} sx={{ mt: 2 }}>
           <Grid item xs={12} md={6}>
-            <TextInput source="flag_id" label="Flag ID" fullWidth />
+            <TextField source="flag_id" label="Flag ID" />
+          </Grid>
+          <Grid item xs={12} md={6}>
+            <DateField source="created_at" label="Created" showTime />
+          </Grid>
+          <Grid item xs={12} md={6}>
+            <DateField source="updated_at" label="Updated" showTime />
           </Grid>
         </Grid>
       </SimpleForm>
@@ -109,12 +131,13 @@ export function FeatureFlagShow() {
   return (
     <Show>
       <SimpleShowLayout>
-        <TextField source="id" label="ID" />
         <TextField source="flag_id" label="Flag ID" />
         <TextField source="key" label="Key" />
         <TextField source="state" label="State" />
         <TextField source="variant" label="Variant" />
         <TextField source="tenant_id" label="Tenant ID" />
+        <DateField source="created_at" label="Created" showTime />
+        <DateField source="updated_at" label="Updated" showTime />
       </SimpleShowLayout>
     </Show>
   )

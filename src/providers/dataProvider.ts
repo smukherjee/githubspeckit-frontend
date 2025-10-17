@@ -32,6 +32,15 @@ const httpClient = async (url: string, options?: Record<string, unknown>) => {
     config.data = opts.body
   }
 
+  // Convert Headers object to plain object for axios
+  if (opts.headers && opts.headers instanceof Headers) {
+    const headersObj: Record<string, string> = {}
+    opts.headers.forEach((value: string, key: string) => {
+      headersObj[key] = value
+    })
+    config.headers = headersObj
+  }
+
   // Handle meta for additional query params (e.g., tenant_id)
   const meta = opts.meta as Record<string, string> | undefined
   if (meta && meta.tenant_id) {
@@ -104,6 +113,19 @@ function shouldInjectTenantId(resource: string, type: string): boolean {
 }
 
 /**
+ * Map frontend resource names to backend API URLs
+ * Some resources use different naming conventions on the backend
+ */
+function getResourceUrl(resource: string): string {
+  const urlMap: Record<string, string> = {
+    'audit-events': '/audit/events',
+    // Add other mappings as needed
+  }
+  
+  return urlMap[resource] || `/${resource}`
+}
+
+/**
  * Create dataProvider with tenant_id injection
  *
  * @param selectedTenantId - Optional tenant_id for superadmin tenant switching
@@ -112,17 +134,48 @@ function shouldInjectTenantId(resource: string, type: string): boolean {
 export function createDataProvider(
   selectedTenantId?: string | null
 ): DataProvider {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const baseDataProvider = simpleRestProvider(API_BASE_URL, httpClient as any)
 
   return {
     ...baseDataProvider,
 
     getList: async (resource, params) => {
+      // Special handling for users resource (backend doesn't return Content-Range header)
+      if (resource === 'users') {
+        try {
+          const tenantId = getTenantId(selectedTenantId)
+          const url = tenantId ? `/users?tenant_id=${tenantId}` : '/users'
+          const response = await apiClient.get(url)
+          
+          let users: unknown[] = []
+          
+          // Backend may return {"users": [...]} or just [...]
+          if (Array.isArray(response.data)) {
+            users = response.data
+          } else if (response.data?.users && Array.isArray(response.data.users)) {
+            users = response.data.users
+          }
+          
+          // Map user_id to id for React-Admin
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const usersWithId = users.map((user: any) => ({
+            ...user,
+            id: user.user_id
+          }))
+          
+          return { data: usersWithId, total: usersWithId.length }
+        } catch (error) {
+          console.error('Users request failed:', error)
+          return { data: [], total: 0 }
+        }
+      }
+
       // Special handling for tenants resource
       if (resource === 'tenants') {
         try {
           const response = await apiClient.get('/tenants')
-          let tenants: Record<string, unknown>[] = []
+          let tenants: unknown[] = []
           
           // Backend returns an array directly, not {tenants: [...]}
           if (Array.isArray(response.data)) {
@@ -131,7 +184,14 @@ export function createDataProvider(
             tenants = response.data.tenants
           }
           
-          return { data: tenants, total: tenants.length }
+          // Map tenant_id to id for React-Admin
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const tenantsWithId = tenants.map((tenant: any) => ({
+            ...tenant,
+            id: tenant.tenant_id
+          }))
+          
+          return { data: tenantsWithId, total: tenantsWithId.length }
         } catch (error) {
           console.error('Tenants request failed:', error)
           return { data: [], total: 0 }
@@ -141,7 +201,7 @@ export function createDataProvider(
       // Special handling for resources that don't support standard pagination params
       if (['feature-flags', 'policies', 'audit-events', 'invitations'].includes(resource)) {
         try {
-          let url = `/${resource}`
+          let url = getResourceUrl(resource)
           const tenantId = getTenantId(selectedTenantId)
           if (tenantId && resource !== 'audit-events') {
             // audit-events doesn't need tenant_id filter at the param level
@@ -150,20 +210,55 @@ export function createDataProvider(
           const response = await apiClient.get(url)
           
           // Handle different response formats
+          let items: unknown[] = []
           const data = response.data
           if (Array.isArray(data)) {
-            return { data, total: data.length }
+            items = data
           } else if (data && typeof data === 'object') {
             // Extract array from common response patterns
-            const keys = Object.keys(data)
-            const arrayKey = keys.find(k => Array.isArray(data[k]))
-            if (arrayKey) {
-              const arr = data[arrayKey]
-              return { data: arr, total: arr.length }
+            // Check for 'items' key first (used by audit/events)
+            if (data.items && Array.isArray(data.items)) {
+              items = data.items
+            } else {
+              const keys = Object.keys(data)
+              const arrayKey = keys.find(k => Array.isArray(data[k]))
+              if (arrayKey) {
+                items = data[arrayKey]
+              }
             }
           }
           
-          return { data: [], total: 0 }
+          // Map resource-specific ID fields to 'id' for React-Admin
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const itemsWithId = items.map((item: any) => {
+            // If already has id, use it; otherwise map from resource-specific field
+            if (item.id) {
+              return item
+            }
+            
+            let idField: string | undefined
+            switch (resource) {
+              case 'feature-flags':
+                idField = item.flag_id
+                break
+              case 'policies':
+                idField = item.policy_id
+                break
+              case 'audit-events':
+                idField = item.event_id
+                break
+              case 'invitations':
+                idField = item.invitation_id
+                break
+            }
+            
+            return {
+              ...item,
+              id: idField
+            }
+          })
+          
+          return { data: itemsWithId, total: itemsWithId.length }
         } catch (error) {
           console.error(`${resource} request failed:`, error)
           return { data: [], total: 0 }
@@ -185,20 +280,69 @@ export function createDataProvider(
     },
 
     getOne: async (resource, params) => {
+      // Special handling for resources with custom URLs
+      if (['audit-events', 'invitations'].includes(resource)) {
+        const resourceUrl = getResourceUrl(resource)
+        const url = `${API_BASE_URL}${resourceUrl}/${params.id}`
+        const response = await httpClient(url)
+        
+        // Map resource-specific ID field to 'id'
+        let data = response.json
+        if (!data.id) {
+          if (resource === 'audit-events' && data.event_id) {
+            data = { ...data, id: data.event_id }
+          } else if (resource === 'invitations' && data.invitation_id) {
+            data = { ...data, id: data.invitation_id }
+          }
+        }
+        
+        return { data }
+      }
+      
       // Inject tenant_id if needed
       if (shouldInjectTenantId(resource, 'getOne')) {
         const tenantId = getTenantId(selectedTenantId)
         if (tenantId) {
-          // ra-data-simple-rest doesn't support filter in getOne
-          // We'll append tenant_id as query param manually via meta
-          params.meta = {
-            ...params.meta,
-            tenant_id: tenantId,
+          // Call httpClient directly with tenant_id as query param
+          const url = `${API_BASE_URL}/${resource}/${params.id}?tenant_id=${tenantId}`
+          const response = await httpClient(url)
+          let data = response.json
+          
+          // Map resource-specific ID fields to 'id' for React-Admin
+          if (!data.id) {
+            if (resource === 'users' && data.user_id) {
+              data = { ...data, id: data.user_id }
+            } else if (resource === 'tenants' && data.tenant_id) {
+              data = { ...data, id: data.tenant_id }
+            } else if (resource === 'feature-flags' && data.flag_id) {
+              data = { ...data, id: data.flag_id }
+            } else if (resource === 'policies' && data.policy_id) {
+              data = { ...data, id: data.policy_id }
+            }
           }
+          
+          return { data }
         }
       }
 
-      return baseDataProvider.getOne(resource, params)
+      // For base provider call, also map ID fields
+      const result = await baseDataProvider.getOne(resource, params)
+      let data = result.data
+      
+      // Map resource-specific ID fields to 'id' for React-Admin
+      if (!data.id) {
+        if (resource === 'users' && data.user_id) {
+          data = { ...data, id: data.user_id }
+        } else if (resource === 'tenants' && data.tenant_id) {
+          data = { ...data, id: data.tenant_id }
+        } else if (resource === 'feature-flags' && data.flag_id) {
+          data = { ...data, id: data.flag_id }
+        } else if (resource === 'policies' && data.policy_id) {
+          data = { ...data, id: data.policy_id }
+        }
+      }
+      
+      return { data }
     },
 
     getMany: async (resource, params) => {
@@ -232,11 +376,36 @@ export function createDataProvider(
     },
 
     create: async (resource, params) => {
-      // Special handling for policies: use /policies/register endpoint
+      // Special handling for policies resource - use /register endpoint
       if (resource === 'policies') {
+        const tenantId = getTenantId(selectedTenantId)
+        
+        // Generate policy_id if not provided
+        // Format: policy-{resource_type}-{timestamp}
+        const policyId = params.data.policy_id || 
+          `policy-${params.data.resource_type || 'default'}-${Date.now()}`
+        
         try {
-          const response = await apiClient.post('/policies/register', params.data)
-          return { data: response.data }
+          const payload = {
+            policy_id: policyId,
+            version: params.data.version || 1,
+            resource_type: params.data.resource_type,
+            condition_expression: params.data.condition_expression,
+            effect: (params.data.effect || 'Allow').toLowerCase(), // Backend expects lowercase
+            tenant_id: tenantId,
+          }
+          
+          console.log('Creating policy with payload:', JSON.stringify(payload, null, 2))
+          
+          const response = await apiClient.post('/policies/register', payload)
+          
+          let data = response.data
+          // Map policy_id to id if needed
+          if (!data.id && data.policy_id) {
+            data = { ...data, id: data.policy_id }
+          }
+          
+          return { data }
         } catch (error) {
           console.error('Policy registration failed:', error)
           throw error
@@ -263,14 +432,48 @@ export function createDataProvider(
       if (shouldInjectTenantId(resource, 'create')) {
         const tenantId = getTenantId(selectedTenantId)
         if (tenantId) {
-          params.data = {
-            ...params.data,
-            tenant_id: tenantId,
+          // Add tenant_id to both query param and body
+          const url = `${API_BASE_URL}/${resource}?tenant_id=${tenantId}`
+          const response = await httpClient(url, {
+            method: 'POST',
+            body: JSON.stringify(params.data),
+          })
+          let data = response.json
+          
+          // Map resource-specific ID fields to 'id' for React-Admin
+          if (!data.id) {
+            if (resource === 'users' && data.user_id) {
+              data = { ...data, id: data.user_id }
+            } else if (resource === 'tenants' && data.tenant_id) {
+              data = { ...data, id: data.tenant_id }
+            } else if (resource === 'feature-flags' && data.flag_id) {
+              data = { ...data, id: data.flag_id }
+            } else if (resource === 'policies' && data.policy_id) {
+              data = { ...data, id: data.policy_id }
+            }
           }
+          
+          return { data }
         }
       }
 
-      return baseDataProvider.create(resource, params)
+      const result = await baseDataProvider.create(resource, params)
+      let data = result.data
+      
+      // Map resource-specific ID fields to 'id' for React-Admin
+      if (!data.id) {
+        if (resource === 'users' && data.user_id) {
+          data = { ...data, id: data.user_id }
+        } else if (resource === 'tenants' && data.tenant_id) {
+          data = { ...data, id: data.tenant_id }
+        } else if (resource === 'feature-flags' && data.flag_id) {
+          data = { ...data, id: data.flag_id }
+        } else if (resource === 'policies' && data.policy_id) {
+          data = { ...data, id: data.policy_id }
+        }
+      }
+      
+      return { data }
     },
 
     update: async (resource, params) => {
@@ -288,14 +491,48 @@ export function createDataProvider(
       if (shouldInjectTenantId(resource, 'update')) {
         const tenantId = getTenantId(selectedTenantId)
         if (tenantId) {
-          params.data = {
-            ...params.data,
-            tenant_id: tenantId,
+          // Add tenant_id as query param
+          const url = `${API_BASE_URL}/${resource}/${params.id}?tenant_id=${tenantId}`
+          const response = await httpClient(url, {
+            method: 'PUT',
+            body: JSON.stringify(params.data),
+          })
+          let data = response.json
+          
+          // Map resource-specific ID fields to 'id' for React-Admin
+          if (!data.id) {
+            if (resource === 'users' && data.user_id) {
+              data = { ...data, id: data.user_id }
+            } else if (resource === 'tenants' && data.tenant_id) {
+              data = { ...data, id: data.tenant_id }
+            } else if (resource === 'feature-flags' && data.flag_id) {
+              data = { ...data, id: data.flag_id }
+            } else if (resource === 'policies' && data.policy_id) {
+              data = { ...data, id: data.policy_id }
+            }
           }
+          
+          return { data }
         }
       }
 
-      return baseDataProvider.update(resource, params)
+      const result = await baseDataProvider.update(resource, params)
+      let data = result.data
+      
+      // Map resource-specific ID fields to 'id' for React-Admin
+      if (!data.id) {
+        if (resource === 'users' && data.user_id) {
+          data = { ...data, id: data.user_id }
+        } else if (resource === 'tenants' && data.tenant_id) {
+          data = { ...data, id: data.tenant_id }
+        } else if (resource === 'feature-flags' && data.flag_id) {
+          data = { ...data, id: data.flag_id }
+        } else if (resource === 'policies' && data.policy_id) {
+          data = { ...data, id: data.policy_id }
+        }
+      }
+      
+      return { data }
     },
 
     updateMany: async (resource, params) => {
@@ -328,10 +565,10 @@ export function createDataProvider(
       if (shouldInjectTenantId(resource, 'delete')) {
         const tenantId = getTenantId(selectedTenantId)
         if (tenantId) {
-          params.meta = {
-            ...params.meta,
-            tenant_id: tenantId,
-          }
+          // Add tenant_id as query param
+          const url = `${API_BASE_URL}/${resource}/${params.id}?tenant_id=${tenantId}`
+          const response = await httpClient(url, { method: 'DELETE' })
+          return { data: response.json }
         }
       }
 

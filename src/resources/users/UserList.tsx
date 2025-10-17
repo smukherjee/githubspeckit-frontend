@@ -19,15 +19,17 @@ import {
   TextInput,
   SelectInput,
   BulkUpdateButton,
+  BulkDeleteButton,
 } from 'react-admin'
 import { useMediaQuery, type Theme } from '@mui/material'
 
 const userFilters = [
-  <TextInput key="email" source="email" label="Search by email" alwaysOn />,
+  <TextInput key="email" source="email" label="Search by email" alwaysOn resettable />,
   <SelectInput
     key="status"
     source="status"
     label="Status"
+    resettable
     choices={[
       { id: 'invited', name: 'Invited' },
       { id: 'active', name: 'Active' },
@@ -38,6 +40,7 @@ const userFilters = [
     key="roles"
     source="roles"
     label="Role"
+    resettable
     choices={[
       { id: 'superadmin', name: 'Superadmin' },
       { id: 'tenant_admin', name: 'Tenant Admin' },
@@ -50,6 +53,7 @@ const UserBulkActionButtons = () => (
   <>
     <BulkUpdateButton label="Enable" data={{ status: 'active' }} />
     <BulkUpdateButton label="Disable" data={{ status: 'disabled' }} />
+    <BulkDeleteButton />
   </>
 )
 
@@ -69,11 +73,12 @@ export function UserList() {
           }
         />
       ) : (
-        <Datagrid bulkActionButtons={<UserBulkActionButtons />}>
+        <Datagrid rowClick="show" bulkActionButtons={<UserBulkActionButtons />}>
           <EmailField source="email" />
           <ChipField source="roles" />
           <TextField source="status" />
-          <DateField source="created_at" />
+          <DateField source="created_at" label="Created" />
+          <DateField source="updated_at" label="Updated" />
         </Datagrid>
       )}
     </List>
