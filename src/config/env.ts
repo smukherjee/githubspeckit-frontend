@@ -15,7 +15,11 @@ const getEnvVar = (key: string, defaultValue?: string): string => {
   return value
 }
 
-export const API_BASE_URL = getEnvVar('VITE_API_BASE_URL', 'http://localhost:8000/api/v1')
+// Best Practice: Use relative URLs with proxy configuration
+// This avoids CORS issues and follows modern frontend development patterns
+// Production deployments typically serve frontend and API from same domain
+export const API_BASE_URL = '/api/v1'
+
 export const DEPLOY_MODE = getEnvVar('VITE_DEPLOY_MODE', 'separate') as 'separate' | 'monorepo' | 'distributed'
 
 // Validate deploy mode

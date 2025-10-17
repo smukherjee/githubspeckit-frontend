@@ -18,6 +18,23 @@ export {
   clearUser,
 } from './storage'
 
+// Authorization utilities
+export {
+  hasRole,
+  isSuperadmin,
+  isTenantAdmin,
+  isSameTenant,
+  isSelfUser,
+  canViewUser,
+  canEditUser,
+  canViewProfile,
+  canEditProfile,
+  canDeleteUser,
+  canRestoreUser,
+  canResetPassword,
+  getUnauthorizedMessage,
+} from './authorization'
+
 // Permission utilities (T028)
 export {
   ROLE_PERMISSIONS,

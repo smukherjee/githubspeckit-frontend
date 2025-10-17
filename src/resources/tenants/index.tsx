@@ -1,6 +1,12 @@
 /**
  * Tenant Resource Components (T042-T043)
  * Superadmin-only resource for managing tenants
+ * 
+ * Backend supports:
+ * - GET /tenants (list)
+ * - POST /tenants (create)
+ * - DELETE /tenants/{id} (soft delete)
+ * - POST /tenants/{id}/restore (restore)
  */
 
 import {
@@ -9,32 +15,100 @@ import {
   TextField,
   DateField,
   Create,
-  Edit,
-  Show,
   SimpleForm,
-  SimpleShowLayout,
   TextInput,
   SelectInput,
   required,
-  BulkUpdateButton,
+  Button,
+  useRecordContext,
+  useNotify,
+  useRefresh,
 } from 'react-admin'
+import RestoreIcon from '@mui/icons-material/Restore'
+import DeleteIcon from '@mui/icons-material/Delete'
+import { apiClient } from '@/utils/api'
+
+/**
+ * Soft Delete Button - Archives a tenant
+ */
+function SoftDeleteTenantButton() {
+  const record = useRecordContext()
+  const notify = useNotify()
+  const refresh = useRefresh()
+
+  if (!record || record.status === 'disabled') {
+    return null // Don't show delete button for already deleted tenants
+  }
+
+  const handleDelete = async () => {
+    if (!window.confirm(`Are you sure you want to disable tenant "${record.name}"? This can be reversed.`)) {
+      return
+    }
+
+    try {
+      await apiClient.delete(`/tenants/${record.tenant_id}`)
+      notify('Tenant disabled successfully', { type: 'success' })
+      refresh()
+    } catch (error) {
+      console.error('Soft delete failed:', error)
+      notify('Error: Failed to disable tenant', { type: 'error' })
+    }
+  }
+
+  return (
+    <Button
+      label="Disable"
+      onClick={handleDelete}
+      startIcon={<DeleteIcon />}
+      color="error"
+    />
+  )
+}
+
+/**
+ * Restore Button - Restores a disabled tenant
+ */
+function RestoreTenantButton() {
+  const record = useRecordContext()
+  const notify = useNotify()
+  const refresh = useRefresh()
+
+  if (!record || record.status !== 'disabled') {
+    return null // Only show for disabled tenants
+  }
+
+  const handleRestore = async () => {
+    try {
+      await apiClient.post(`/tenants/${record.tenant_id}/restore`)
+      notify('Tenant restored successfully', { type: 'success' })
+      refresh()
+    } catch (error) {
+      console.error('Restore failed:', error)
+      notify('Error: Failed to restore tenant', { type: 'error' })
+    }
+  }
+
+  return (
+    <Button
+      label="Restore"
+      onClick={handleRestore}
+      startIcon={<RestoreIcon />}
+      color="primary"
+    />
+  )
+}
 
 // T042: TenantList
-const TenantBulkActionButtons = () => (
-  <>
-    <BulkUpdateButton label="Enable" data={{ status: 'active' }} />
-    <BulkUpdateButton label="Disable" data={{ status: 'disabled' }} />
-  </>
-)
-
 export function TenantList() {
   return (
     <List>
-      <Datagrid bulkActionButtons={<TenantBulkActionButtons />}>
+      <Datagrid>
         <TextField source="name" label="Name" />
         <TextField source="status" label="Status" />
         <TextField source="config_version" label="Config Version" />
         <DateField source="created_at" label="Created" />
+        <SoftDeleteTenantButton />
+        <RestoreTenantButton />
       </Datagrid>
     </List>
   )
@@ -43,7 +117,7 @@ export function TenantList() {
 // T043: TenantCreate
 export function TenantCreate() {
   return (
-    <Create>
+    <Create redirect="list">
       <SimpleForm>
         <TextInput source="name" validate={[required()]} fullWidth />
         <SelectInput
@@ -61,41 +135,10 @@ export function TenantCreate() {
   )
 }
 
-// T043: TenantEdit
-export function TenantEdit() {
-  return (
-    <Edit>
-      <SimpleForm>
-        <TextInput source="name" validate={[required()]} fullWidth />
-        <SelectInput
-          source="status"
-          choices={[
-            { id: 'active', name: 'Active' },
-            { id: 'disabled', name: 'Disabled' },
-          ]}
-          validate={[required()]}
-          fullWidth
-        />
-        <TextField source="config_version" label="Config Version" />
-        <DateField source="created_at" />
-        <DateField source="updated_at" />
-      </SimpleForm>
-    </Edit>
-  )
-}
+// T043: TenantEdit - NOT SUPPORTED
+// Backend returns 405 Method Not Allowed for PUT /tenants/{id}
+// Commenting out until backend implements individual tenant operations
 
-// T043: TenantShow
-export function TenantShow() {
-  return (
-    <Show>
-      <SimpleShowLayout>
-        <TextField source="tenant_id" label="Tenant ID" />
-        <TextField source="name" label="Name" />
-        <TextField source="status" label="Status" />
-        <TextField source="config_version" label="Config Version" />
-        <DateField source="created_at" label="Created" showTime />
-        <DateField source="updated_at" label="Updated" showTime />
-      </SimpleShowLayout>
-    </Show>
-  )
-}
+// T043: TenantShow - NOT SUPPORTED  
+// Backend returns 405 Method Not Allowed for GET /tenants/{id}
+// Commenting out until backend implements individual tenant operations

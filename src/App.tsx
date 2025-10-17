@@ -10,22 +10,22 @@
  * - Responsive Material-UI theme
  */
 
-import { Admin, Resource, defaultTheme } from 'react-admin'
+import { Admin, Resource, defaultTheme, CustomRoutes } from 'react-admin'
 import { useMemo } from 'react'
+import { Route } from 'react-router-dom'
 import { authProvider } from '@/providers/authProvider'
 import { createDataProvider } from '@/providers/dataProvider'
-import { TenantProvider, useTenant } from '@/contexts/TenantContext'
+import { TenantProvider } from '@/contexts/TenantContext'
+import { useTenant } from '@/hooks/useTenant'
 import { ErrorBoundary } from '@/components/layout/ErrorBoundary'
 import { Layout } from '@/components/layout/Layout'
 import { ForbiddenPage } from '@/components/layout/ForbiddenPage'
 
 // Resource components
-import { UserList, UserCreate, UserEdit, UserShow } from '@/resources/users'
+import { UserList, UserCreate, UserEdit, UserShow, UserProfile } from '@/resources/users'
 import {
   TenantList,
   TenantCreate,
-  TenantEdit,
-  TenantShow,
 } from '@/resources/tenants'
 import {
   FeatureFlagList,
@@ -44,6 +44,7 @@ import {
   InvitationShow,
 } from '@/resources/invitations'
 import { AuditEventList, AuditEventShow } from '@/resources/auditEvents'
+import { HealthStatus, ConfigViewer, LogsViewer, MetricsViewer } from '@/resources/system'
 
 // Material-UI icons for resources
 import PeopleIcon from '@mui/icons-material/People'
@@ -52,6 +53,10 @@ import FlagIcon from '@mui/icons-material/Flag'
 import PolicyIcon from '@mui/icons-material/Policy'
 import MailIcon from '@mui/icons-material/Mail'
 import HistoryIcon from '@mui/icons-material/History'
+import MonitorHeartIcon from '@mui/icons-material/MonitorHeart'
+import SettingsIcon from '@mui/icons-material/Settings'
+import DescriptionIcon from '@mui/icons-material/Description'
+import BarChartIcon from '@mui/icons-material/BarChart'
 
 // T050: Configure Material-UI theme with responsive breakpoints
 const theme = {
@@ -116,12 +121,11 @@ function AdminApp() {
         icon={PeopleIcon}
       />
       {/* T049: Tenant Resource (Superadmin Only) */}
+      {/* Note: Only list and create are supported by backend */}
       <Resource
         name="tenants"
         list={TenantList}
         create={TenantCreate}
-        edit={TenantEdit}
-        show={TenantShow}
         icon={BusinessIcon}
       />
       {/* T049: Feature Flags Resource */}
@@ -158,6 +162,37 @@ function AdminApp() {
         icon={HistoryIcon}
         options={{ label: 'Audit Events' }}
       />
+      
+      {/* System Monitoring (Superadmin Only) */}
+      <Resource
+        name="system-health"
+        list={HealthStatus}
+        icon={MonitorHeartIcon}
+        options={{ label: 'System Health' }}
+      />
+      <Resource
+        name="system-config"
+        list={ConfigViewer}
+        icon={SettingsIcon}
+        options={{ label: 'Configuration' }}
+      />
+      <Resource
+        name="system-logs"
+        list={LogsViewer}
+        icon={DescriptionIcon}
+        options={{ label: 'Logs' }}
+      />
+      <Resource
+        name="system-metrics"
+        list={MetricsViewer}
+        icon={BarChartIcon}
+        options={{ label: 'Metrics' }}
+      />
+      
+      {/* Custom Routes */}
+      <CustomRoutes>
+        <Route path="/users/:id/profile" element={<UserProfile />} />
+      </CustomRoutes>
     </Admin>
   )
 }

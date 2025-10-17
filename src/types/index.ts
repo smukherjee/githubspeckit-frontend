@@ -26,3 +26,16 @@ export type {
   PaginatedResponse,
   ApiError,
 } from './permissions'
+
+// System types
+export type { 
+  HealthCheck, 
+  Config, 
+  ConfigEntry, 
+  ConfigError, 
+  ConfigErrors,
+  LogRecord,
+  LogsExportResponse,
+  LogsExportParams,
+  MetricsSnapshot
+} from './system'

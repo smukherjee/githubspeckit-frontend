@@ -20,8 +20,11 @@ import {
   SelectInput,
   BulkUpdateButton,
   BulkDeleteButton,
+  type Identifier,
+  type RaRecord,
 } from 'react-admin'
 import { useMediaQuery, type Theme } from '@mui/material'
+import { canViewUser } from '@/utils/authorization'
 
 const userFilters = [
   <TextInput key="email" source="email" label="Search by email" alwaysOn resettable />,
@@ -60,6 +63,18 @@ const UserBulkActionButtons = () => (
 export function UserList() {
   const isSmall = useMediaQuery<Theme>((theme) => theme.breakpoints.down('lg'))
 
+  // Custom row click that checks authorization
+  const handleRowClick = (_id: Identifier, _resource: string, record: RaRecord<Identifier>) => {
+    // Check if user can view this user record
+    // Cast to include our user fields
+    const userRecord = record as RaRecord<Identifier> & { user_id?: string; tenant_id?: string }
+    if (canViewUser(userRecord)) {
+      return 'show' // Navigate to show page
+    }
+    // If not authorized, don't navigate (could show error toast here)
+    return false
+  }
+
   return (
     <List filters={userFilters}>
       {isSmall ? (
@@ -71,9 +86,10 @@ export function UserList() {
           tertiaryText={(record) =>
             new Date(record.created_at).toLocaleDateString()
           }
+          // SimpleList doesn't support custom rowClick, users can still click
         />
       ) : (
-        <Datagrid rowClick="show" bulkActionButtons={<UserBulkActionButtons />}>
+        <Datagrid rowClick={handleRowClick} bulkActionButtons={<UserBulkActionButtons />}>
           <EmailField source="email" />
           <ChipField source="roles" />
           <TextField source="status" />

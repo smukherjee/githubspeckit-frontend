@@ -61,7 +61,8 @@ export const authProvider: AuthProvider = {
       setUser(response.data.user)
 
       return Promise.resolve()
-    } catch {
+    } catch (error) {
+      console.error('Login failed:', error)
       return Promise.reject(
         new Error('Invalid email or password. Please try again.')
       )

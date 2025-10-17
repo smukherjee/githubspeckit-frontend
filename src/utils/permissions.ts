@@ -51,6 +51,12 @@ export const ROLE_PERMISSIONS: RolePermissions[] = [
       
       { resource: 'audit-events', action: 'list', permission: 'allowed' },
       { resource: 'audit-events', action: 'show', permission: 'allowed' },
+      
+      // System monitoring (Superadmin only)
+      { resource: 'system-health', action: 'list', permission: 'allowed' },
+      { resource: 'system-config', action: 'list', permission: 'allowed' },
+      { resource: 'system-logs', action: 'list', permission: 'allowed' },
+      { resource: 'system-metrics', action: 'list', permission: 'allowed' },
     ],
   },
   {
@@ -88,6 +94,12 @@ export const ROLE_PERMISSIONS: RolePermissions[] = [
       
       { resource: 'audit-events', action: 'list', permission: 'allowed' },
       { resource: 'audit-events', action: 'show', permission: 'allowed' },
+      
+      // System monitoring (not allowed for tenant_admin)
+      { resource: 'system-health', action: 'list', permission: 'disallowed' },
+      { resource: 'system-config', action: 'list', permission: 'disallowed' },
+      { resource: 'system-logs', action: 'list', permission: 'disallowed' },
+      { resource: 'system-metrics', action: 'list', permission: 'disallowed' },
     ],
   },
   {
@@ -125,6 +137,12 @@ export const ROLE_PERMISSIONS: RolePermissions[] = [
       
       { resource: 'audit-events', action: 'list', permission: 'readonly' },
       { resource: 'audit-events', action: 'show', permission: 'readonly' },
+      
+      // System monitoring (not allowed for standard users)
+      { resource: 'system-health', action: 'list', permission: 'disallowed' },
+      { resource: 'system-config', action: 'list', permission: 'disallowed' },
+      { resource: 'system-logs', action: 'list', permission: 'disallowed' },
+      { resource: 'system-metrics', action: 'list', permission: 'disallowed' },
     ],
   },
 ]

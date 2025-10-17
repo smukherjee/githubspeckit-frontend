@@ -69,7 +69,7 @@ export function InvitationList() {
 
 export function InvitationCreate() {
   return (
-    <Create>
+    <Create redirect="list">
       <SimpleForm>
         <Grid container spacing={2}>
           <Grid item xs={12} md={6}>

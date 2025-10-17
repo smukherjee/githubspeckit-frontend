@@ -9,22 +9,14 @@
  */
 
 import {
-  createContext,
-  useContext,
   useState,
   useEffect,
   type ReactNode,
 } from 'react'
 import { getUser } from '@/utils/storage'
+import { TenantContext, type TenantContextValue } from './TenantContextDefinition'
 
 const STORAGE_KEY = 'selected_tenant_id'
-
-interface TenantContextValue {
-  selectedTenantId: string | null
-  setSelectedTenantId: (tenantId: string | null) => void
-}
-
-const TenantContext = createContext<TenantContextValue | undefined>(undefined)
 
 interface TenantProviderProps {
   children: ReactNode
@@ -61,9 +53,11 @@ export function TenantProvider({ children }: TenantProviderProps) {
 
   const setSelectedTenantId = (tenantId: string | null) => {
     setSelectedTenantIdState(tenantId)
-    // Force data refetch by dispatching a custom event
-    // Components can listen for this to refetch data
-    window.dispatchEvent(new CustomEvent('tenantChanged', { detail: tenantId }))
+    // Force a page refresh to reload all data with the new tenant
+    // This ensures all components and caches are properly updated
+    setTimeout(() => {
+      window.location.reload()
+    }, 100) // Small delay to allow state to save to localStorage
   }
 
   const value: TenantContextValue = {
@@ -74,20 +68,4 @@ export function TenantProvider({ children }: TenantProviderProps) {
   return (
     <TenantContext.Provider value={value}>{children}</TenantContext.Provider>
   )
-}
-
-/**
- * useTenant hook
- * Access tenant selection state from any component
- *
- * @throws Error if used outside TenantProvider
- */
-export function useTenant(): TenantContextValue {
-  const context = useContext(TenantContext)
-
-  if (context === undefined) {
-    throw new Error('useTenant must be used within TenantProvider')
-  }
-
-  return context
 }

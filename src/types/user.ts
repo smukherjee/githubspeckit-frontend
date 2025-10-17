@@ -2,11 +2,11 @@
  * User Type Definitions (T021)
  * 
  * Core user entity with role-based access control.
- * Roles: superadmin (cross-tenant), tenant_admin (tenant-scoped), standard (read-only)
+ * Roles: superadmin (cross-tenant), support_readonly, tenant_admin (tenant-scoped), user (standard access)
  * Status: invited (pending), active (verified), disabled (soft-deleted)
  */
 
-export type UserRole = 'superadmin' | 'tenant_admin' | 'standard'
+export type UserRole = 'superadmin' | 'support_readonly' | 'tenant_admin' | 'user'
 
 export type UserStatus = 'invited' | 'active' | 'disabled'
 

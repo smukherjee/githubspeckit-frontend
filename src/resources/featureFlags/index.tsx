@@ -56,7 +56,7 @@ export function FeatureFlagList() {
 
 export function FeatureFlagCreate() {
   return (
-    <Create>
+    <Create redirect="list">
       <SimpleForm>
         <Grid container spacing={2}>
           <Grid item xs={12} md={6}>
@@ -89,7 +89,7 @@ export function FeatureFlagCreate() {
 
 export function FeatureFlagEdit() {
   return (
-    <Edit>
+    <Edit redirect="list">
       <SimpleForm>
         <Grid container spacing={2}>
           <Grid item xs={12} md={6}>

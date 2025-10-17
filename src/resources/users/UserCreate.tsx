@@ -20,7 +20,7 @@ import { Grid } from '@mui/material'
 
 export function UserCreate() {
   return (
-    <Create>
+    <Create redirect="list">
       <SimpleForm>
         <Grid container spacing={2}>
           <Grid item xs={12} md={6}>
@@ -28,6 +28,24 @@ export function UserCreate() {
               source="email"
               label="Email"
               validate={[required(), email()]}
+              fullWidth
+            />
+          </Grid>
+          <Grid item xs={12} md={6}>
+            <TextInput
+              source="password"
+              label="Password"
+              type="password"
+              validate={[
+                required(),
+                (value: string) => {
+                  if (!value) return undefined
+                  if (!/[A-Z]/.test(value)) {
+                    return 'Password must contain at least one uppercase letter'
+                  }
+                  return undefined
+                }
+              ]}
               fullWidth
             />
           </Grid>
@@ -45,14 +63,18 @@ export function UserCreate() {
               fullWidth
             />
           </Grid>
-          <Grid item xs={12}>
+          <Grid item xs={12} md={6}>
             <SelectArrayInput
               source="roles"
               label="Roles"
               choices={[
                 { id: 'superadmin', name: 'Superadmin' },
                 { id: 'tenant_admin', name: 'Tenant Admin' },
-                { id: 'standard', name: 'Standard' },
+                { id: 'admin', name: 'Admin' },
+                { id: 'developer', name: 'Developer' },
+                { id: 'analyst', name: 'Analyst' },
+                { id: 'user', name: 'User' },
+                { id: 'support_readonly', name: 'Support (Read-Only)' },
               ]}
               validate={[required()]}
               fullWidth

@@ -14,7 +14,7 @@ describe('MSW Setup', () => {
 
   it('should be able to make mock API calls', async () => {
     // Test auth login endpoint
-    const response = await fetch('http://localhost:8000/api/v1/auth/login', {
+    const response = await fetch('/api/v1/auth/login', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -32,7 +32,7 @@ describe('MSW Setup', () => {
 
   it('should enforce tenant_id requirement for users endpoint', async () => {
     // Test users endpoint WITHOUT tenant_id (should fail)
-    const response = await fetch('http://localhost:8000/api/v1/users')
+    const response = await fetch('/api/v1/users')
 
     expect(response.status).toBe(400)
     const data = await response.json()
@@ -42,7 +42,7 @@ describe('MSW Setup', () => {
   it('should return users with tenant_id parameter', async () => {
     // Test users endpoint WITH tenant_id (should succeed)
     const response = await fetch(
-      'http://localhost:8000/api/v1/users?tenant_id=tenant-infysight'
+      '/api/v1/users?tenant_id=tenant-infysight'
     )
 
     expect(response.ok).toBe(true)

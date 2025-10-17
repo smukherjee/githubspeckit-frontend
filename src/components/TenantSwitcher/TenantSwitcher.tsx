@@ -20,7 +20,7 @@ import {
   type SelectChangeEvent,
 } from '@mui/material'
 import { usePermissions } from 'react-admin'
-import { useTenant } from '@/contexts/TenantContext'
+import { useTenant } from '@/hooks/useTenant'
 import { apiClient } from '@/utils/api'
 import type { Tenant } from '@/types/tenant'
 

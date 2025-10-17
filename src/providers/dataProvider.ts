@@ -20,11 +20,16 @@ import { apiClient } from '@/utils/api'
  * Handles meta.tenant_id for query parameters
  * Returns format expected by ra-data-simple-rest
  */
-const httpClient = async (url: string, options?: Record<string, unknown>) => {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const httpClient = async (url: string, options?: any) => {
+  // Remove any duplicate /api/v1 prefix if it exists
+  const cleanUrl = url.startsWith('/api/v1/') ? url.substring(8) : url // Remove "/api/v1/" -> "users/..."
+  const finalUrl = cleanUrl.startsWith('/') ? cleanUrl : `/${cleanUrl}` // Ensure leading slash
+  
   const opts = options || {}
   const config: Record<string, unknown> = {
     method: (opts.method as string) || 'GET',
-    url,
+    url: finalUrl, // Use the cleaned URL
     ...opts,
   }
 
@@ -44,8 +49,8 @@ const httpClient = async (url: string, options?: Record<string, unknown>) => {
   // Handle meta for additional query params (e.g., tenant_id)
   const meta = opts.meta as Record<string, string> | undefined
   if (meta && meta.tenant_id) {
-    const separator = url.includes('?') ? '&' : '?'
-    config.url = `${url}${separator}tenant_id=${meta.tenant_id}`
+    const separator = finalUrl.includes('?') ? '&' : '?'
+    config.url = `${finalUrl}${separator}tenant_id=${meta.tenant_id}`
   }
 
   try {
@@ -63,6 +68,35 @@ const httpClient = async (url: string, options?: Record<string, unknown>) => {
       json: response.data,
     }
   } catch (error) {
+    // Enhanced error logging for debugging
+    console.error('Full error object:', error)
+    
+    if (error && typeof error === 'object' && 'response' in error) {
+      const axiosError = error as { response: { status: number; data: unknown; statusText?: string } }
+      console.error('API Error Details:', {
+        status: axiosError.response?.status,
+        statusText: axiosError.response?.statusText,
+        data: axiosError.response?.data,
+        url: config.url,
+        method: config.method,
+        payload: config.data
+      })
+      
+      // If it's a 422, the backend is responding with validation details
+      if (axiosError.response?.status === 422) {
+        console.error('Validation Error from Backend:', axiosError.response.data)
+        
+        // If the data has a detail array, log each validation error
+        const responseData = axiosError.response.data as { detail?: unknown[] }
+        if (responseData && responseData.detail && Array.isArray(responseData.detail)) {
+          console.error('Validation Details:')
+          responseData.detail.forEach((validationError: unknown, index: number) => {
+            console.error(`  ${index + 1}.`, validationError)
+          })
+        }
+      }
+    }
+    
     // Re-throw with meaningful error message to prevent Polyglot translation errors
     if (error instanceof Error) {
       throw new Error(error.message || 'Request failed')
@@ -134,8 +168,8 @@ function getResourceUrl(resource: string): string {
 export function createDataProvider(
   selectedTenantId?: string | null
 ): DataProvider {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const baseDataProvider = simpleRestProvider(API_BASE_URL, httpClient as any)
+  // Pass empty base URL since our httpClient (apiClient) already has the base URL configured
+  const baseDataProvider = simpleRestProvider('', httpClient)
 
   return {
     ...baseDataProvider,
@@ -158,10 +192,14 @@ export function createDataProvider(
           }
           
           // Map user_id to id for React-Admin
+          // Backend returns 'status' field directly (active/disabled/invited)
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           const usersWithId = users.map((user: any) => ({
             ...user,
-            id: user.user_id
+            id: user.user_id,
+            // Backend already provides status field, no mapping needed
+            // Just ensure it has a value
+            status: user.status || 'active'
           }))
           
           return { data: usersWithId, total: usersWithId.length }
@@ -311,7 +349,12 @@ export function createDataProvider(
           // Map resource-specific ID fields to 'id' for React-Admin
           if (!data.id) {
             if (resource === 'users' && data.user_id) {
-              data = { ...data, id: data.user_id }
+              data = { 
+                ...data, 
+                id: data.user_id,
+                // Backend returns status field directly, ensure it has a value
+                status: data.status || 'active'
+              }
             } else if (resource === 'tenants' && data.tenant_id) {
               data = { ...data, id: data.tenant_id }
             } else if (resource === 'feature-flags' && data.flag_id) {
@@ -332,7 +375,12 @@ export function createDataProvider(
       // Map resource-specific ID fields to 'id' for React-Admin
       if (!data.id) {
         if (resource === 'users' && data.user_id) {
-          data = { ...data, id: data.user_id }
+          data = { 
+            ...data, 
+            id: data.user_id,
+            // Backend returns status field directly, ensure it has a value
+            status: data.status || 'active'
+          }
         } else if (resource === 'tenants' && data.tenant_id) {
           data = { ...data, id: data.tenant_id }
         } else if (resource === 'feature-flags' && data.flag_id) {
@@ -434,9 +482,18 @@ export function createDataProvider(
         if (tenantId) {
           // Add tenant_id to both query param and body
           const url = `${API_BASE_URL}/${resource}?tenant_id=${tenantId}`
+          
+          // For user creation, include tenant_id in the request body
+          const bodyData = resource === 'users' 
+            ? { ...params.data, tenant_id: tenantId }
+            : params.data
+          
+          // Debug: Log the request payload
+          console.log(`Creating ${resource} with payload:`, JSON.stringify(bodyData, null, 2))
+          
           const response = await httpClient(url, {
             method: 'POST',
-            body: JSON.stringify(params.data),
+            body: JSON.stringify(bodyData),
           })
           let data = response.json
           
@@ -493,16 +550,39 @@ export function createDataProvider(
         if (tenantId) {
           // Add tenant_id as query param
           const url = `${API_BASE_URL}/${resource}/${params.id}?tenant_id=${tenantId}`
+          
+          // Process the data based on resource type
+          let requestData = params.data;
+          
+          // Special handling for users resource
+          if (resource === 'users') {
+            // Backend accepts 'status' field directly (active/disabled/invited)
+            requestData = {
+              email: params.data.email,
+              roles: params.data.roles,
+              status: params.data.status, // Send status directly, no need to map
+              tenant_id: tenantId // Include tenant_id in the request body
+            };
+            
+            // Debug the request
+            console.log(`Updating user with payload:`, JSON.stringify(requestData, null, 2));
+          }
+          
           const response = await httpClient(url, {
             method: 'PUT',
-            body: JSON.stringify(params.data),
+            body: JSON.stringify(requestData),
           })
           let data = response.json
           
           // Map resource-specific ID fields to 'id' for React-Admin
           if (!data.id) {
             if (resource === 'users' && data.user_id) {
-              data = { ...data, id: data.user_id }
+              data = { 
+                ...data, 
+                id: data.user_id,
+                // Backend returns status field directly, ensure it has a value
+                status: data.status || 'active'
+              }
             } else if (resource === 'tenants' && data.tenant_id) {
               data = { ...data, id: data.tenant_id }
             } else if (resource === 'feature-flags' && data.flag_id) {

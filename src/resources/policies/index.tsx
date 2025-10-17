@@ -44,7 +44,7 @@ export function PolicyList() {
 
 export function PolicyCreate() {
   return (
-    <Create>
+    <Create redirect="list">
       <SimpleForm>
         <Grid container spacing={2}>
           <Grid item xs={12} md={6}>
@@ -95,7 +95,7 @@ export function PolicyCreate() {
 
 export function PolicyEdit() {
   return (
-    <Edit>
+    <Edit redirect="list">
       <SimpleForm>
         <Grid container spacing={2}>
           <Grid item xs={12} md={6}>
