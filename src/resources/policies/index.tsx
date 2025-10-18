@@ -17,21 +17,15 @@ import {
   NumberInput,
   SelectInput,
   required,
-  BulkDeleteButton,
 } from 'react-admin'
 import { Grid } from '@mui/material'
 
-// Bulk actions for policies
-const PolicyBulkActionButtons = () => (
-  <>
-    <BulkDeleteButton />
-  </>
-)
+// No bulk actions for policies - individual delete only
 
 export function PolicyList() {
   return (
     <List>
-      <Datagrid rowClick="edit" bulkActionButtons={<PolicyBulkActionButtons />}>
+      <Datagrid rowClick="edit" bulkActionButtons={false}>
         <TextField source="resource_type" label="Resource Type" />
         <TextField source="effect" label="Effect" />
         <TextField source="version" label="Version" />
@@ -95,7 +89,7 @@ export function PolicyCreate() {
 
 export function PolicyEdit() {
   return (
-    <Edit redirect="list">
+    <Edit redirect="list" mutationMode="pessimistic">
       <SimpleForm>
         <Grid container spacing={2}>
           <Grid item xs={12} md={6}>

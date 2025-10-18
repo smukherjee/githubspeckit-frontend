@@ -11,7 +11,6 @@
 import {
   List,
   Datagrid,
-  TextField,
   EmailField,
   DateField,
   ChipField,
@@ -19,11 +18,11 @@ import {
   TextInput,
   SelectInput,
   BulkUpdateButton,
-  BulkDeleteButton,
   type Identifier,
   type RaRecord,
+  FunctionField,
 } from 'react-admin'
-import { useMediaQuery, type Theme } from '@mui/material'
+import { useMediaQuery, type Theme, Chip } from '@mui/material'
 import { canViewUser } from '@/utils/authorization'
 
 const userFilters = [
@@ -54,14 +53,21 @@ const userFilters = [
 
 const UserBulkActionButtons = () => (
   <>
-    <BulkUpdateButton label="Enable" data={{ status: 'active' }} />
-    <BulkUpdateButton label="Disable" data={{ status: 'disabled' }} />
-    <BulkDeleteButton />
+    <BulkUpdateButton 
+      label="Set Active" 
+      data={{ status: 'active' }} 
+      mutationMode="pessimistic"
+    />
+    <BulkUpdateButton 
+      label="Set Disabled" 
+      data={{ status: 'disabled' }} 
+      mutationMode="pessimistic"
+    />
   </>
 )
 
 export function UserList() {
-  const isSmall = useMediaQuery<Theme>((theme) => theme.breakpoints.down('lg'))
+  const isSmall = useMediaQuery<Theme>((theme) => theme.breakpoints.down('sm'))
 
   // Custom row click that checks authorization
   const handleRowClick = (_id: Identifier, _resource: string, record: RaRecord<Identifier>) => {
@@ -91,8 +97,26 @@ export function UserList() {
       ) : (
         <Datagrid rowClick={handleRowClick} bulkActionButtons={<UserBulkActionButtons />}>
           <EmailField source="email" />
+          <FunctionField
+            label="Status"
+            render={(record: RaRecord) => {
+              const status = record.status as string;
+              return (
+                <Chip
+                  label={status.charAt(0).toUpperCase() + status.slice(1)}
+                  color={
+                    status === 'active'
+                      ? 'success'
+                      : status === 'disabled'
+                      ? 'error'
+                      : 'default'
+                  }
+                  size="small"
+                />
+              );
+            }}
+          />
           <ChipField source="roles" />
-          <TextField source="status" />
           <DateField source="created_at" label="Created" />
           <DateField source="updated_at" label="Updated" />
         </Datagrid>

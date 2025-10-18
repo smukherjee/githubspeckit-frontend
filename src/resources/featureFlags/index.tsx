@@ -18,21 +18,29 @@ import {
   SelectInput,
   required,
   BulkUpdateButton,
-  BulkDeleteButton,
+  FunctionField,
+  type RaRecord,
 } from 'react-admin'
-import { Grid, useMediaQuery, type Theme } from '@mui/material'
+import { Grid, useMediaQuery, type Theme, Chip } from '@mui/material'
 
 // Bulk actions for feature flags
 const FeatureFlagBulkActionButtons = () => (
   <>
-    <BulkUpdateButton label="Enable" data={{ state: 'enabled' }} />
-    <BulkUpdateButton label="Disable" data={{ state: 'disabled' }} />
-    <BulkDeleteButton />
+    <BulkUpdateButton 
+      label="Enable" 
+      data={{ state: 'enabled' }} 
+      mutationMode="pessimistic"
+    />
+    <BulkUpdateButton 
+      label="Disable" 
+      data={{ state: 'disabled' }} 
+      mutationMode="pessimistic"
+    />
   </>
 )
 
 export function FeatureFlagList() {
-  const isSmall = useMediaQuery<Theme>((theme) => theme.breakpoints.down('lg'))
+  const isSmall = useMediaQuery<Theme>((theme) => theme.breakpoints.down('sm'))
 
   return (
     <List>
@@ -44,7 +52,19 @@ export function FeatureFlagList() {
       ) : (
         <Datagrid rowClick="edit" bulkActionButtons={<FeatureFlagBulkActionButtons />}>
           <TextField source="key" label="Key" />
-          <TextField source="state" label="State" />
+          <FunctionField
+            label="State"
+            render={(record: RaRecord) => {
+              const state = record.state as string;
+              return (
+                <Chip
+                  label={state.charAt(0).toUpperCase() + state.slice(1)}
+                  color={state === 'enabled' ? 'success' : 'error'}
+                  size="small"
+                />
+              );
+            }}
+          />
           <TextField source="variant" label="Variant" />
           <DateField source="created_at" label="Created" />
           <DateField source="updated_at" label="Updated" />
@@ -89,7 +109,7 @@ export function FeatureFlagCreate() {
 
 export function FeatureFlagEdit() {
   return (
-    <Edit redirect="list">
+    <Edit redirect="list" mutationMode="pessimistic">
       <SimpleForm>
         <Grid container spacing={2}>
           <Grid item xs={12} md={6}>

@@ -21,8 +21,10 @@ import {
   useRecordContext,
   useNotify,
   useRefresh,
+  FunctionField,
+  type RaRecord,
 } from 'react-admin'
-import { Grid } from '@mui/material'
+import { Grid, Chip } from '@mui/material'
 import BlockIcon from '@mui/icons-material/Block'
 import { apiClient } from '@/utils/api'
 
@@ -59,7 +61,27 @@ export function InvitationList() {
     <List>
       <Datagrid rowClick={false}>
         <EmailField source="email" label="Email" />
-        <TextField source="status" label="Status" />
+        <FunctionField
+          label="Status"
+          render={(record: RaRecord) => {
+            const status = record.status as string;
+            return (
+              <Chip
+                label={status.charAt(0).toUpperCase() + status.slice(1)}
+                color={
+                  status === 'accepted'
+                    ? 'success'
+                    : status === 'pending'
+                    ? 'warning'
+                    : status === 'revoked'
+                    ? 'error'
+                    : 'default'
+                }
+                size="small"
+              />
+            );
+          }}
+        />
         <DateField source="expires_at" label="Expires" showTime />
         <DateField source="created_at" label="Created" showTime />
       </Datagrid>

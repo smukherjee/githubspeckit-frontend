@@ -58,9 +58,13 @@ export function UserEdit() {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
     notify(`Error updating user: ${errorMessage}`, { type: 'error' });
   };
-  
+
   return (
-    <Edit redirect="list" mutationOptions={{ onSuccess, onError }}>
+    <Edit 
+      redirect="list" 
+      mutationMode="pessimistic"
+      mutationOptions={{ onSuccess, onError }}
+    >
       <SimpleForm>
         <EditAuthCheck />
         <Grid container spacing={2}>

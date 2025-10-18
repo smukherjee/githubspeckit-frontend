@@ -171,7 +171,7 @@ export function createDataProvider(
   // Pass empty base URL since our httpClient (apiClient) already has the base URL configured
   const baseDataProvider = simpleRestProvider('', httpClient)
 
-  return {
+  const customDataProvider = {
     ...baseDataProvider,
 
     getList: async (resource, params) => {
@@ -534,6 +534,8 @@ export function createDataProvider(
     },
 
     update: async (resource, params) => {
+      console.log(`📝 dataProvider.update called for resource: ${resource}`, params);
+      
       // Disable update for audit-events (read-only)
       if (resource === 'audit-events') {
         throw new Error('Audit events are read-only.')
@@ -556,22 +558,34 @@ export function createDataProvider(
           
           // Special handling for users resource
           if (resource === 'users') {
-            // Backend accepts 'status' field directly (active/disabled/invited)
+            // Backend expects 'is_disabled' boolean field, not 'status' string
+            // Frontend uses status: 'active' | 'disabled' | 'invited'
+            // Backend update endpoint only accepts is_disabled: true | false
+            const isDisabled = params.data.status === 'disabled' ? true : false;
+            
             requestData = {
               email: params.data.email,
               roles: params.data.roles,
-              status: params.data.status, // Send status directly, no need to map
+              is_disabled: isDisabled, // Map status to is_disabled
               tenant_id: tenantId // Include tenant_id in the request body
             };
             
             // Debug the request
-            console.log(`Updating user with payload:`, JSON.stringify(requestData, null, 2));
+            console.log(`🚀 Updating user with payload:`, JSON.stringify(requestData, null, 2));
+            console.log(`  Mapped status '${params.data.status}' to is_disabled=${isDisabled}`);
           }
           
-          const response = await httpClient(url, {
-            method: 'PUT',
-            body: JSON.stringify(requestData),
-          })
+          let response;
+          try {
+            response = await httpClient(url, {
+              method: 'PUT',
+              body: JSON.stringify(requestData),
+            })
+            console.log(`✅ Update successful, response:`, response.json);
+          } catch (error) {
+            console.error(`❌ Update failed:`, error);
+            throw error;
+          }
           let data = response.json
           
           // Map resource-specific ID fields to 'id' for React-Admin
@@ -616,6 +630,8 @@ export function createDataProvider(
     },
 
     updateMany: async (resource, params) => {
+      console.log(`📝 dataProvider.updateMany called for resource: ${resource}`, params);
+      
       // Inject tenant_id if needed
       if (shouldInjectTenantId(resource, 'updateMany')) {
         const tenantId = getTenantId(selectedTenantId)
@@ -670,6 +686,9 @@ export function createDataProvider(
       return baseDataProvider.deleteMany(resource, params)
     },
   }
+  
+  console.log('✨ DataProvider created, update method exists:', typeof customDataProvider.update === 'function');
+  return customDataProvider;
 }
 
 /**

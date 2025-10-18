@@ -23,9 +23,12 @@ import {
   useRecordContext,
   useNotify,
   useRefresh,
+  FunctionField,
+  type RaRecord,
 } from 'react-admin'
 import RestoreIcon from '@mui/icons-material/Restore'
 import DeleteIcon from '@mui/icons-material/Delete'
+import { Chip } from '@mui/material'
 import { apiClient } from '@/utils/api'
 
 /**
@@ -104,7 +107,25 @@ export function TenantList() {
     <List>
       <Datagrid>
         <TextField source="name" label="Name" />
-        <TextField source="status" label="Status" />
+        <FunctionField
+          label="Status"
+          render={(record: RaRecord) => {
+            const status = record.status as string;
+            return (
+              <Chip
+                label={status.charAt(0).toUpperCase() + status.slice(1)}
+                color={
+                  status === 'active'
+                    ? 'success'
+                    : status === 'disabled'
+                    ? 'error'
+                    : 'default'
+                }
+                size="small"
+              />
+            );
+          }}
+        />
         <TextField source="config_version" label="Config Version" />
         <DateField source="created_at" label="Created" />
         <SoftDeleteTenantButton />
