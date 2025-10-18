@@ -94,8 +94,9 @@ export const authProvider: AuthProvider = {
       // This stores the JWT ID (jti) in the database to prevent replay attacks
       await apiClient.post('/auth/revoke')
     } catch (error) {
-      // Log error but don't prevent logout - clear local state anyway
-      console.error('Token revocation failed:', error)
+      // Silently handle revocation errors (token may already be invalid/expired)
+      // Don't prevent logout - clearing local state is more important than revocation
+      // Note: 422 errors are expected when token is already invalid
     } finally {
       // Always clear auth data from localStorage
       clearAuth()
