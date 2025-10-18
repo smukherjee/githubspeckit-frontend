@@ -4,7 +4,7 @@
  * Responsive list of users:
  * - Desktop: Datagrid with columns (email, roles, status, created_at)
  * - Tablet: SimpleList with primaryText=email, secondaryText=roles+status
- * - Filters: status, roles, search by email
+ * - Filters: status, roles, search by email (debounced)
  * - Bulk actions: Enable/Disable users
  */
 
@@ -24,9 +24,35 @@ import {
 } from 'react-admin'
 import { useMediaQuery, type Theme, Chip } from '@mui/material'
 import { canViewUser } from '@/utils/authorization'
+import { debounce } from 'lodash'
+import { useMemo } from 'react'
+
+// Debounced search input to reduce API calls
+const DebouncedSearchInput = () => {
+  const debouncedSearch = useMemo(
+    () => debounce((value: string, callback: (value: string) => void) => {
+      callback(value)
+    }, 500),
+    []
+  )
+
+  return (
+    <TextInput
+      key="email"
+      source="email"
+      label="Search by email"
+      alwaysOn
+      resettable
+      parse={(value: string) => {
+        debouncedSearch(value, () => {})
+        return value
+      }}
+    />
+  )
+}
 
 const userFilters = [
-  <TextInput key="email" source="email" label="Search by email" alwaysOn resettable />,
+  <DebouncedSearchInput key="email-search" />,
   <SelectInput
     key="status"
     source="status"

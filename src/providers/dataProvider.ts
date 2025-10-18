@@ -10,10 +10,24 @@
  */
 
 import simpleRestProvider from 'ra-data-simple-rest'
-import type { DataProvider } from 'react-admin'
+import type { DataProvider, GetListParams, GetOneParams, GetManyParams, GetManyReferenceParams, CreateParams, UpdateParams, UpdateManyParams, DeleteParams, DeleteManyParams } from 'react-admin'
 import { API_BASE_URL } from '@/config/env'
 import { getUser } from '@/utils/storage'
 import { apiClient } from '@/utils/api'
+
+/**
+ * Dev-only logging helpers
+ * In production builds, these are removed by Terser (drop_console: true)
+ */
+const isDev = import.meta.env.DEV
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const devLog = (...args: any[]) => {
+  if (isDev) console.log(...args)
+}
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const devError = (...args: any[]) => {
+  if (isDev) console.error(...args)
+}
 
 /**
  * HTTP client that uses the shared apiClient with interceptors
@@ -69,11 +83,11 @@ const httpClient = async (url: string, options?: any) => {
     }
   } catch (error) {
     // Enhanced error logging for debugging
-    console.error('Full error object:', error)
+    devError('Full error object:', error)
     
     if (error && typeof error === 'object' && 'response' in error) {
       const axiosError = error as { response: { status: number; data: unknown; statusText?: string } }
-      console.error('API Error Details:', {
+      devError('API Error Details:', {
         status: axiosError.response?.status,
         statusText: axiosError.response?.statusText,
         data: axiosError.response?.data,
@@ -84,14 +98,14 @@ const httpClient = async (url: string, options?: any) => {
       
       // If it's a 422, the backend is responding with validation details
       if (axiosError.response?.status === 422) {
-        console.error('Validation Error from Backend:', axiosError.response.data)
+        devError('Validation Error from Backend:', axiosError.response.data)
         
         // If the data has a detail array, log each validation error
         const responseData = axiosError.response.data as { detail?: unknown[] }
         if (responseData && responseData.detail && Array.isArray(responseData.detail)) {
-          console.error('Validation Details:')
+          devError('Validation Details:')
           responseData.detail.forEach((validationError: unknown, index: number) => {
-            console.error(`  ${index + 1}.`, validationError)
+            devError(`  ${index + 1}.`, validationError)
           })
         }
       }
@@ -124,6 +138,15 @@ function getTenantId(selectedTenantId?: string | null): string | null {
 
   // Otherwise use user's own tenant_id
   return user.tenant_id || null
+}
+
+/**
+ * Build pagination query params from React-Admin pagination object
+ */
+function getPaginationParams(pagination: { page: number; perPage: number }): string {
+  const page = pagination.page || 1
+  const perPage = pagination.perPage || 10
+  return `page=${page}&per_page=${perPage}`
 }
 
 /**
@@ -174,21 +197,33 @@ export function createDataProvider(
   const customDataProvider = {
     ...baseDataProvider,
 
-    getList: async (resource, params) => {
+    getList: async (resource: string, params: GetListParams) => {
+      // Extract pagination params
+      const paginationParams = getPaginationParams(params.pagination)
+      
       // Special handling for users resource (backend doesn't return Content-Range header)
       if (resource === 'users') {
         try {
           const tenantId = getTenantId(selectedTenantId)
-          const url = tenantId ? `/users?tenant_id=${tenantId}` : '/users'
+          const baseUrl = `/users`
+          const queryParams = [paginationParams]
+          if (tenantId) {
+            queryParams.push(`tenant_id=${tenantId}`)
+          }
+          const url = `${baseUrl}?${queryParams.join('&')}`
+          
           const response = await apiClient.get(url)
           
           let users: unknown[] = []
+          let total = 0
           
-          // Backend may return {"users": [...]} or just [...]
+          // Backend may return {"users": [...], "total": N} or just [...]
           if (Array.isArray(response.data)) {
             users = response.data
+            total = response.data.length
           } else if (response.data?.users && Array.isArray(response.data.users)) {
             users = response.data.users
+            total = response.data.total || users.length
           }
           
           // Map user_id to id for React-Admin
@@ -202,9 +237,9 @@ export function createDataProvider(
             status: user.status || 'active'
           }))
           
-          return { data: usersWithId, total: usersWithId.length }
+          return { data: usersWithId, total }
         } catch (error) {
-          console.error('Users request failed:', error)
+          devError('Users request failed:', error)
           return { data: [], total: 0 }
         }
       }
@@ -212,14 +247,18 @@ export function createDataProvider(
       // Special handling for tenants resource
       if (resource === 'tenants') {
         try {
-          const response = await apiClient.get('/tenants')
+          const url = `/tenants?${paginationParams}`
+          const response = await apiClient.get(url)
           let tenants: unknown[] = []
+          let total = 0
           
-          // Backend returns an array directly, not {tenants: [...]}
+          // Backend may return an array directly or {tenants: [...], total: N}
           if (Array.isArray(response.data)) {
             tenants = response.data
+            total = response.data.length
           } else if (response.data?.tenants && Array.isArray(response.data.tenants)) {
             tenants = response.data.tenants
+            total = response.data.total || tenants.length
           }
           
           // Map tenant_id to id for React-Admin
@@ -229,39 +268,48 @@ export function createDataProvider(
             id: tenant.tenant_id
           }))
           
-          return { data: tenantsWithId, total: tenantsWithId.length }
+          return { data: tenantsWithId, total }
         } catch (error) {
-          console.error('Tenants request failed:', error)
+          devError('Tenants request failed:', error)
           return { data: [], total: 0 }
         }
       }
 
-      // Special handling for resources that don't support standard pagination params
+      // Special handling for resources with pagination support
       if (['feature-flags', 'policies', 'audit-events', 'invitations'].includes(resource)) {
         try {
           let url = getResourceUrl(resource)
+          const queryParams = [paginationParams]
+          
           const tenantId = getTenantId(selectedTenantId)
           if (tenantId && resource !== 'audit-events') {
             // audit-events doesn't need tenant_id filter at the param level
-            url += `?tenant_id=${tenantId}`
+            queryParams.push(`tenant_id=${tenantId}`)
           }
+          
+          url += `?${queryParams.join('&')}`
           const response = await apiClient.get(url)
           
           // Handle different response formats
           let items: unknown[] = []
+          let total = 0
           const data = response.data
+          
           if (Array.isArray(data)) {
             items = data
+            total = data.length
           } else if (data && typeof data === 'object') {
-            // Extract array from common response patterns
+            // Extract array and total from common response patterns
             // Check for 'items' key first (used by audit/events)
             if (data.items && Array.isArray(data.items)) {
               items = data.items
+              total = data.total || items.length
             } else {
               const keys = Object.keys(data)
               const arrayKey = keys.find(k => Array.isArray(data[k]))
               if (arrayKey) {
                 items = data[arrayKey]
+                total = data.total || items.length
               }
             }
           }
@@ -296,9 +344,9 @@ export function createDataProvider(
             }
           })
           
-          return { data: itemsWithId, total: itemsWithId.length }
+          return { data: itemsWithId, total }
         } catch (error) {
-          console.error(`${resource} request failed:`, error)
+          devError(`${resource} request failed:`, error)
           return { data: [], total: 0 }
         }
       }
@@ -317,7 +365,7 @@ export function createDataProvider(
       return baseDataProvider.getList(resource, params)
     },
 
-    getOne: async (resource, params) => {
+    getOne: async (resource: string, params: GetOneParams) => {
       // Special handling for resources with custom URLs
       if (['audit-events', 'invitations'].includes(resource)) {
         const resourceUrl = getResourceUrl(resource)
@@ -393,7 +441,7 @@ export function createDataProvider(
       return { data }
     },
 
-    getMany: async (resource, params) => {
+    getMany: async (resource: string, params: GetManyParams) => {
       // Inject tenant_id if needed
       if (shouldInjectTenantId(resource, 'getMany')) {
         const tenantId = getTenantId(selectedTenantId)
@@ -408,7 +456,7 @@ export function createDataProvider(
       return baseDataProvider.getMany(resource, params)
     },
 
-    getManyReference: async (resource, params) => {
+    getManyReference: async (resource: string, params: GetManyReferenceParams) => {
       // Inject tenant_id if needed
       if (shouldInjectTenantId(resource, 'getManyReference')) {
         const tenantId = getTenantId(selectedTenantId)
@@ -423,7 +471,7 @@ export function createDataProvider(
       return baseDataProvider.getManyReference(resource, params)
     },
 
-    create: async (resource, params) => {
+    create: async (resource: string, params: CreateParams) => {
       // Special handling for policies resource - use /register endpoint
       if (resource === 'policies') {
         const tenantId = getTenantId(selectedTenantId)
@@ -443,7 +491,7 @@ export function createDataProvider(
             tenant_id: tenantId,
           }
           
-          console.log('Creating policy with payload:', JSON.stringify(payload, null, 2))
+          devLog('Creating policy with payload:', JSON.stringify(payload, null, 2))
           
           const response = await apiClient.post('/policies/register', payload)
           
@@ -455,7 +503,7 @@ export function createDataProvider(
           
           return { data }
         } catch (error) {
-          console.error('Policy registration failed:', error)
+          devError('Policy registration failed:', error)
           throw error
         }
       }
@@ -489,7 +537,7 @@ export function createDataProvider(
             : params.data
           
           // Debug: Log the request payload
-          console.log(`Creating ${resource} with payload:`, JSON.stringify(bodyData, null, 2))
+          devLog(`Creating ${resource} with payload:`, JSON.stringify(bodyData, null, 2))
           
           const response = await httpClient(url, {
             method: 'POST',
@@ -533,8 +581,8 @@ export function createDataProvider(
       return { data }
     },
 
-    update: async (resource, params) => {
-      console.log(`📝 dataProvider.update called for resource: ${resource}`, params);
+    update: async (resource: string, params: UpdateParams) => {
+      devLog(`📝 dataProvider.update called for resource: ${resource}`, params);
       
       // Disable update for audit-events (read-only)
       if (resource === 'audit-events') {
@@ -571,8 +619,8 @@ export function createDataProvider(
             };
             
             // Debug the request
-            console.log(`🚀 Updating user with payload:`, JSON.stringify(requestData, null, 2));
-            console.log(`  Mapped status '${params.data.status}' to is_disabled=${isDisabled}`);
+            devLog(`🚀 Updating user with payload:`, JSON.stringify(requestData, null, 2));
+            devLog(`  Mapped status '${params.data.status}' to is_disabled=${isDisabled}`);
           }
           
           let response;
@@ -581,9 +629,9 @@ export function createDataProvider(
               method: 'PUT',
               body: JSON.stringify(requestData),
             })
-            console.log(`✅ Update successful, response:`, response.json);
+            devLog(`✅ Update successful, response:`, response.json);
           } catch (error) {
-            console.error(`❌ Update failed:`, error);
+            devError(`❌ Update failed:`, error);
             throw error;
           }
           let data = response.json
@@ -629,8 +677,8 @@ export function createDataProvider(
       return { data }
     },
 
-    updateMany: async (resource, params) => {
-      console.log(`📝 dataProvider.updateMany called for resource: ${resource}`, params);
+    updateMany: async (resource: string, params: UpdateManyParams) => {
+      devLog(`📝 dataProvider.updateMany called for resource: ${resource}`, params);
       
       // Inject tenant_id if needed
       if (shouldInjectTenantId(resource, 'updateMany')) {
@@ -646,7 +694,7 @@ export function createDataProvider(
       return baseDataProvider.updateMany(resource, params)
     },
 
-    delete: async (resource, params) => {
+    delete: async (resource: string, params: DeleteParams) => {
       // Disable delete for audit-events (read-only)
       if (resource === 'audit-events') {
         throw new Error('Audit events are read-only.')
@@ -671,7 +719,7 @@ export function createDataProvider(
       return baseDataProvider.delete(resource, params)
     },
 
-    deleteMany: async (resource, params) => {
+    deleteMany: async (resource: string, params: DeleteManyParams) => {
       // Inject tenant_id if needed
       if (shouldInjectTenantId(resource, 'deleteMany')) {
         const tenantId = getTenantId(selectedTenantId)
@@ -687,7 +735,7 @@ export function createDataProvider(
     },
   }
   
-  console.log('✨ DataProvider created, update method exists:', typeof customDataProvider.update === 'function');
+  devLog('✨ DataProvider created, update method exists:', typeof customDataProvider.update === 'function');
   return customDataProvider;
 }
 

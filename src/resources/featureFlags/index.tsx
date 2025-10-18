@@ -22,6 +22,46 @@ import {
   type RaRecord,
 } from 'react-admin'
 import { Grid, useMediaQuery, type Theme, Chip } from '@mui/material'
+import { debounce } from 'lodash'
+import { useMemo } from 'react'
+
+// Debounced search input for feature flags
+const DebouncedSearchInput = () => {
+  const debouncedSearch = useMemo(
+    () => debounce((value: string, callback: (value: string) => void) => {
+      callback(value)
+    }, 500),
+    []
+  )
+
+  return (
+    <TextInput
+      key="key"
+      source="key"
+      label="Search by key"
+      alwaysOn
+      resettable
+      parse={(value: string) => {
+        debouncedSearch(value, () => {})
+        return value
+      }}
+    />
+  )
+}
+
+const featureFlagFilters = [
+  <DebouncedSearchInput key="key-search" />,
+  <SelectInput
+    key="state"
+    source="state"
+    label="State"
+    resettable
+    choices={[
+      { id: 'enabled', name: 'Enabled' },
+      { id: 'disabled', name: 'Disabled' },
+    ]}
+  />,
+]
 
 // Bulk actions for feature flags
 const FeatureFlagBulkActionButtons = () => (
@@ -43,7 +83,7 @@ export function FeatureFlagList() {
   const isSmall = useMediaQuery<Theme>((theme) => theme.breakpoints.down('sm'))
 
   return (
-    <List>
+    <List filters={featureFlagFilters}>
       {isSmall ? (
         <SimpleList
           primaryText={(record) => record.key || 'Unknown'}
