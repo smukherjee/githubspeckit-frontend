@@ -28,16 +28,16 @@ export default defineConfig({
   build: {
     // Modern build target - reduces polyfills
     target: 'es2015',
-    // Enable minification with Terser
+    // Enable minification with Terser for smaller bundles
     minify: 'terser',
     // Optimize chunk splitting
     rollupOptions: {
       output: {
         manualChunks: {
-          // Vendor chunks
+          // Vendor chunks - let Vite handle MUI/Emotion bundling automatically
           'react-vendor': ['react', 'react-dom', 'react-router-dom'],
           'react-admin': ['react-admin', 'ra-data-simple-rest'],
-          'mui': ['@mui/material', '@mui/icons-material', '@emotion/react', '@emotion/styled'],
+          // Removed MUI chunk - letting Vite bundle @mui and @emotion together correctly
         },
       },
     },

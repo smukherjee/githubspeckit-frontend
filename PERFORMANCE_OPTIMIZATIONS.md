@@ -129,6 +129,7 @@ This document details all performance optimizations implemented to improve Light
 
 - [x] Build completes successfully
 - [x] All resources lazy-load correctly
+- [x] Preview server works correctly
 - [ ] Auth flow works (login/logout)
 - [ ] CRUD operations work on all resources
 - [ ] Filters and search work correctly
@@ -136,6 +137,16 @@ This document details all performance optimizations implemented to improve Light
 - [ ] Responsive design maintained
 - [ ] No console errors in production
 - [ ] Lighthouse audit shows 85+ score
+
+## Testing Instructions
+
+See [TESTING_GUIDE.md](./TESTING_GUIDE.md) for detailed testing instructions.
+
+**Quick Test**:
+```bash
+npm run build && npm run preview
+```
+Then open http://localhost:4173/ (or 4174 if 4173 is in use) in your browser.
 
 ## Next Steps
 
