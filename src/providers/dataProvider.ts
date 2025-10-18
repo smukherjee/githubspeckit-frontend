@@ -145,9 +145,9 @@ function getTenantId(selectedTenantId?: string | null): string | null {
 /**
  * Build pagination query params from React-Admin pagination object
  */
-function getPaginationParams(pagination: { page: number; perPage: number }): string {
-  const page = pagination.page || 1
-  const perPage = pagination.perPage || 10
+function getPaginationParams(pagination?: { page: number; perPage: number }): string {
+  const page = pagination?.page || 1
+  const perPage = pagination?.perPage || 10
   return `page=${page}&per_page=${perPage}`
 }
 

@@ -21,9 +21,9 @@
     "@sentry/react": "^10.20.0",
     "axios": "^1.12.2",
     "lodash": "^4.17.21",
-    "ra-data-simple-rest": "^4.16.20",
+    "ra-data-simple-rest": "^5.12.1",
     "react": "^18.3.1",
-    "react-admin": "^4.16.20",
+    "react-admin": "^5.12.1",
     "react-dom": "^18.3.1"
   },
   "devDependencies": {
