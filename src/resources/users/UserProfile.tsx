@@ -89,13 +89,7 @@ export function UserProfile() {
         const response = await apiClient.get(`/users/${id}/profile`)
         const profileData = response.data as UserProfile
         
-        console.log('Profile loaded:', {
-          photo_avatar_url: profileData.photo_avatar_url,
-          photo_display_url: profileData.photo_display_url,
-          photo_thumbnail_url: profileData.photo_thumbnail_url,
-          absoluteAvatarUrl: getAbsoluteUrl(profileData.photo_avatar_url)
-        })
-        
+        // Profile data loaded successfully
         setProfile(profileData)
         setFullName(profileData.full_name || '')
         setPhone(profileData.phone || '')

@@ -20,8 +20,10 @@ import { apiClient } from '@/utils/api'
  * In production builds, these are removed by Terser (drop_console: true)
  */
 const isDev = import.meta.env.DEV
+// Dev-only logging is acceptable - only runs in development
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const devLog = (...args: any[]) => {
+  // eslint-disable-next-line no-console
   if (isDev) console.log(...args)
 }
 // eslint-disable-next-line @typescript-eslint/no-explicit-any

@@ -98,6 +98,7 @@ function AdminApp() {
         layout={Layout}
         catchAll={ForbiddenPage}
         requireAuth
+        disableTelemetry
       >
         {/* T049: User Resource */}
         <Resource

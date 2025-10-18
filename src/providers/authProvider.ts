@@ -20,6 +20,7 @@ import {
   clearAuth,
 } from '@/utils/storage'
 import type { LoginResponse } from '@/types/auth'
+import { logSecurityEvent, setUserContext, clearUserContext } from '@/config/sentry'
 
 /**
  * Refresh access token using HttpOnly refresh cookie
@@ -59,10 +60,24 @@ export const authProvider: AuthProvider = {
       // Store access token and user object
       setAccessToken(response.data.access_token)
       setUser(response.data.user)
+      
+      // Set Sentry user context for error tracking
+      setUserContext(
+        response.data.user.user_id,
+        response.data.user.email,
+        response.data.user.tenant_id
+      )
 
       return Promise.resolve()
     } catch (error) {
       console.error('Login failed:', error)
+      
+      // Log security event
+      logSecurityEvent('auth_failed', {
+        email: username,
+        reason: error instanceof Error ? error.message : 'Unknown error',
+      })
+      
       return Promise.reject(
         new Error('Invalid email or password. Please try again.')
       )
@@ -84,6 +99,9 @@ export const authProvider: AuthProvider = {
     } finally {
       // Always clear auth data from localStorage
       clearAuth()
+      
+      // Clear Sentry user context
+      clearUserContext()
     }
 
     return Promise.resolve()
@@ -112,17 +130,31 @@ export const authProvider: AuthProvider = {
    */
   checkError: async (error: { status?: number }) => {
     const status = error.status
+    const user = getUser()
 
     if (status === 401) {
       // Token expired or invalid
       // api.ts interceptor will attempt refresh automatically
       // If refresh fails, clearAuth() is called and user is redirected to login
+      
+      logSecurityEvent('token_expired', {
+        userId: user?.user_id,
+        tenantId: user?.tenant_id,
+      })
+      
       return Promise.reject(new Error('Authentication required'))
     }
 
     if (status === 403) {
       // Forbidden - user doesn't have permission
       // Don't logout, just show error message
+      
+      logSecurityEvent('permission_denied', {
+        userId: user?.user_id,
+        tenantId: user?.tenant_id,
+        reason: 'HTTP 403 Forbidden',
+      })
+      
       return Promise.reject(
         new Error("You don't have permission to access this resource")
       )

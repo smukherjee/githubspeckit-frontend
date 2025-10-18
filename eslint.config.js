@@ -19,5 +19,11 @@ export default defineConfig([
       ecmaVersion: 2020,
       globals: globals.browser,
     },
+    rules: {
+      // Security: Prevent console statements in production code
+      'no-console': process.env.NODE_ENV === 'production' ? 'error' : 'warn',
+      // Allow console in dev helper functions (devLog, devError)
+      'no-console': ['warn', { allow: ['warn', 'error'] }],
+    },
   },
 ])
