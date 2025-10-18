@@ -4,7 +4,7 @@
 # WARNING: This is invasive and may modify data!
 # Only run against test environments
 
-TARGET_URL="${1:-http://localhost:4173}"
+TARGET_URL="${1:-http://host.docker.internal:4173}"
 ZAP_PORT="${ZAP_PORT:-8090}"
 REPORT_DIR="./security/zap/reports"
 
@@ -27,7 +27,9 @@ fi
 mkdir -p "$REPORT_DIR"
 
 # Run ZAP full scan using Docker
+# Use --add-host to map host.docker.internal on macOS/Linux
 docker run --rm \
+  --add-host=host.docker.internal:host-gateway \
   -v "$(pwd)/$REPORT_DIR:/zap/wrk/:rw" \
   -t zaproxy/zap-stable \
   zap-full-scan.py \

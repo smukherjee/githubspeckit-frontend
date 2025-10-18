@@ -3,7 +3,7 @@
 # OWASP ZAP Baseline Scan
 # Runs a passive scan against the target URL
 
-TARGET_URL="${1:-http://localhost:4173}"
+TARGET_URL="${1:-http://host.docker.internal:4173}"
 ZAP_PORT="${ZAP_PORT:-8090}"
 REPORT_DIR="./security/zap/reports"
 
@@ -18,7 +18,9 @@ echo ""
 mkdir -p "$REPORT_DIR"
 
 # Run ZAP baseline scan using Docker
+# Use --add-host to map host.docker.internal on macOS/Linux
 docker run --rm \
+  --add-host=host.docker.internal:host-gateway \
   -v "$(pwd)/$REPORT_DIR:/zap/wrk/:rw" \
   -t zaproxy/zap-stable \
   zap-baseline.py \
