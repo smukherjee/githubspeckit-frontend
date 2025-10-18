@@ -1,0 +1,7 @@
+# Ignore ZAP scan reports
+reports/*.html
+reports/*.json
+reports/*.xml
+
+# Keep the reports directory
+!reports/.gitkeep

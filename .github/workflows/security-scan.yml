@@ -1,0 +1,145 @@
+name: OWASP ZAP Security Scan
+
+on:
+  push:
+    branches: [main, master, develop, lighthouse-optimizations]
+  pull_request:
+    branches: [main, master]
+  schedule:
+    # Run weekly on Mondays at 9 AM UTC
+    - cron: '0 9 * * 1'
+  workflow_dispatch: # Allow manual trigger
+
+jobs:
+  zap-scan:
+    runs-on: ubuntu-latest
+    name: OWASP ZAP Security Scan
+    
+    permissions:
+      contents: read
+      issues: write
+      security-events: write
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+      
+      - name: Install dependencies
+        run: npm ci
+      
+      - name: Build application
+        run: npm run build
+        env:
+          VITE_API_BASE_URL: http://localhost:8000/api/v1
+          VITE_SENTRY_DSN: ${{ secrets.VITE_SENTRY_DSN }}
+      
+      - name: Start preview server
+        run: |
+          npm run preview &
+          echo "Waiting for server to start..."
+          sleep 10
+          curl -f http://localhost:4173 || (echo "Server failed to start" && exit 1)
+      
+      - name: Run ZAP Baseline Scan
+        uses: zaproxy/action-baseline@v0.12.0
+        with:
+          target: 'http://localhost:4173'
+          rules_file_name: 'security/zap/zap-rules.tsv'
+          cmd_options: '-a'
+          allow_issue_writing: true
+          fail_action: true
+      
+      - name: Upload ZAP Scan Report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: zap-scan-report-${{ github.run_number }}
+          path: |
+            report_html.html
+            report_json.json
+            report_md.md
+          retention-days: 30
+      
+      - name: Create Security Issue on High Severity
+        if: failure()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            let reportContent = 'OWASP ZAP scan detected security vulnerabilities.';
+            
+            try {
+              if (fs.existsSync('report_md.md')) {
+                reportContent = fs.readFileSync('report_md.md', 'utf8');
+              }
+            } catch (error) {
+              console.log('Could not read report:', error);
+            }
+            
+            github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: '🔴 Security vulnerabilities found by OWASP ZAP',
+              body: `## OWASP ZAP Security Scan Results
+              
+              **Scan Date:** ${new Date().toISOString()}
+              **Branch:** ${context.ref}
+              **Commit:** ${context.sha}
+              **Workflow Run:** [#${context.runNumber}](${context.payload.repository.html_url}/actions/runs/${context.runId})
+              
+              ---
+              
+              ${reportContent}
+              
+              ---
+              
+              ### Next Steps
+              
+              1. Review the [scan report](${context.payload.repository.html_url}/actions/runs/${context.runId})
+              2. Fix high and medium severity issues
+              3. Re-run the scan to verify fixes
+              4. Update \`security/zap/zap-rules.tsv\` if false positives
+              
+              ### Resources
+              
+              - [OWASP ZAP Documentation](https://www.zaproxy.org/docs/)
+              - [Security Guide](../blob/main/OWASP_ZAP_GUIDE.md)
+              `,
+              labels: ['security', 'vulnerability', 'owasp-zap']
+            });
+      
+      - name: Comment on PR
+        if: github.event_name == 'pull_request' && always()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            let reportSummary = 'OWASP ZAP scan completed.';
+            
+            try {
+              if (fs.existsSync('report_md.md')) {
+                const fullReport = fs.readFileSync('report_md.md', 'utf8');
+                // Extract summary (first 1000 chars)
+                reportSummary = fullReport.substring(0, 1000) + '...';
+              }
+            } catch (error) {
+              console.log('Could not read report:', error);
+            }
+            
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: `## 🔒 OWASP ZAP Security Scan
+              
+              ${reportSummary}
+              
+              **Full report:** [View Artifacts](${context.payload.repository.html_url}/actions/runs/${context.runId})
+              `
+            });
